@@ -46,6 +46,7 @@ from .entity import (
 from .lib.attributes import UniledAttribute
 
 from .lib.const import (
+    ATTR_HA_COLOR_TEMP,
     ATTR_HA_MIN_COLOR_TEMP_KELVIN,
     ATTR_HA_MAX_COLOR_TEMP_KELVIN,
     ATTR_HA_MIN_MIREDS,
@@ -74,9 +75,6 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
-
-# Legacy HA light attribute kept for backward compatibility with UniLED internals
-ATTR_COLOR_TEMP_LEGACY = "color_temp"
 
 
 async def async_setup_entry(
@@ -147,7 +145,11 @@ class UniledLightEntity(
     def color_mode(self) -> ColorMode | None:
         """Return the color mode of the light."""
         if self.channel.has(ATTR_COLOR_MODE):
-            return self.channel.get(ATTR_COLOR_MODE, ColorMode.ONOFF)
+            value = self.channel.get(ATTR_COLOR_MODE)
+            try:
+                return ColorMode(value)
+            except (ValueError, TypeError):
+                return ColorMode.ONOFF
         if not self._attr_color_mode:
             supported = self.supported_color_modes
             if supported and not self._attr_color_mode:
@@ -177,7 +179,7 @@ class UniledLightEntity(
             self._attr_supported_color_modes = {ColorMode.RGB}
             self._attr_color_mode = ColorMode.RGB
         elif (
-            self.channel.has(ATTR_COLOR_TEMP_LEGACY)
+            self.channel.has(ATTR_HA_COLOR_TEMP)
             or self.channel.has(ATTR_COLOR_TEMP_KELVIN)
             or self.channel.has(ATTR_UL_CCT_COLOR)
         ):
@@ -245,9 +247,9 @@ class UniledLightEntity(
                     self.max_color_temp_kelvin,
                 )
             return kelvin
-        elif self.channel.has(ATTR_COLOR_TEMP_LEGACY):
+        elif self.channel.has(ATTR_HA_COLOR_TEMP):
             return color_temperature_mired_to_kelvin(
-                self.channel.get(ATTR_COLOR_TEMP_LEGACY)
+                self.channel.get(ATTR_HA_COLOR_TEMP)
             )
         return self._attr_color_temp_kelvin
 
@@ -352,7 +354,7 @@ class UniledLightEntity(
             # Process any color temperature changes here to do a kelvin
             # to cold, warm and brightness conversion first etc.
             #
-            mireds = kwargs.pop(ATTR_COLOR_TEMP_LEGACY, None)
+            mireds = kwargs.pop(ATTR_HA_COLOR_TEMP, None)
             kelvin = kwargs.pop(ATTR_COLOR_TEMP_KELVIN, None)
 
             if kelvin is None and mireds is not None:
@@ -374,10 +376,10 @@ class UniledLightEntity(
                     success = await self.device.async_set_state(
                         self.channel, ATTR_UL_CCT_COLOR, (cold, warm, level, kelvin)
                     )
-                elif self.channel.has(ATTR_COLOR_TEMP_LEGACY):
+                elif self.channel.has(ATTR_HA_COLOR_TEMP):
                     success = await self.device.async_set_state(
                         self.channel,
-                        ATTR_COLOR_TEMP_LEGACY,
+                        ATTR_HA_COLOR_TEMP,
                         color_temperature_kelvin_to_mired(kelvin),
                     )
 
