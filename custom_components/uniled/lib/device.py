@@ -240,10 +240,8 @@ class UniledDevice:
         command = self._model.build_command(self, channel, attr, state)
         if command:
             channel.refresh()  # Optimistically notify entities of the pre-set state
-            success = await self.send(command) if command else False
-            if success:
-                channel.set(attr, state, True)
-            else:
+            success = await self.send(command)
+            if not success:
                 channel.refresh()
             return success
         return False
@@ -255,9 +253,6 @@ class UniledDevice:
             return True
         channel.refresh()  # Optimistically notify entities of the pre-set state
         success = await self.send(commands)
-        if success:
-            for attr, state in kwargs.items():
-                channel.set(attr, state, True)
         channel.refresh()
         return success
 
