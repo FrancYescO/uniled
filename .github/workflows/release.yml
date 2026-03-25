@@ -21,7 +21,7 @@ on:
         default: 'true'
   push:
     branches:
-      - main
+      - dev_v3
     paths:
       - 'custom_components/uniled/manifest.json'
 
