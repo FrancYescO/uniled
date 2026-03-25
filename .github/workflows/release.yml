@@ -1,0 +1,59 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name (e.g. 3.0.11-beta.12)'
+        required: true
+        default: '3.0.11-beta.12'
+      name:
+        description: 'Release name (e.g. v3.0.11 Beta 12)'
+        required: true
+        default: 'v3.0.11 Beta 12'
+      body:
+        description: 'Release notes'
+        required: false
+        default: 'Normalize device string color modes to ColorMode enum; fix color_mode coercion and type annotation for HA 2026.3 compatibility.'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          NAME: ${{ github.event.inputs.name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$NAME"
+          git push origin "$TAG"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag }}
+          NAME: ${{ github.event.inputs.name }}
+          BODY: ${{ github.event.inputs.body }}
+          PRERELEASE: ${{ github.event.inputs.prerelease }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "$PRERELEASE" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "$TAG" \
+            --title "$NAME" \
+            --notes "$BODY" \
+            $PRERELEASE_FLAG
