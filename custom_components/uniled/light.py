@@ -141,10 +141,16 @@ class UniledLightEntity(
         super()._async_update_attrs()
 
     @property
-    def color_mode(self) -> ColorMode | None:
+    def color_mode(self) -> ColorMode | str | None:
         """Return the color mode of the light."""
         if self.channel.has(ATTR_COLOR_MODE):
-            return self.channel.get(ATTR_COLOR_MODE, ColorMode.ONOFF)
+            raw = self.channel.get(ATTR_COLOR_MODE, ColorMode.ONOFF)
+            if isinstance(raw, str):
+                try:
+                    return ColorMode(raw)
+                except ValueError:
+                    return raw
+            return raw
         if not self._attr_color_mode:
             supported = self.supported_color_modes
             if supported and not self._attr_color_mode:
@@ -163,7 +169,37 @@ class UniledLightEntity(
     def __supported_color_modes(self) -> set[ColorMode] | None:
         """Supported color modes."""
         if self.channel.has(ATTR_SUPPORTED_COLOR_MODES):
-            return self.channel.get(ATTR_SUPPORTED_COLOR_MODES, {ColorMode.ONOFF})
+            raw_modes = self.channel.get(ATTR_SUPPORTED_COLOR_MODES, {ColorMode.ONOFF})
+            if isinstance(raw_modes, set):
+                normalized_modes: set[ColorMode] = set()
+                for mode in raw_modes:
+                    if isinstance(mode, ColorMode):
+                        normalized_modes.add(mode)
+                    elif isinstance(mode, str):
+                        try:
+                            normalized_modes.add(ColorMode(mode))
+                        except ValueError:
+                            _LOGGER.debug(
+                                "%s: Unsupported color mode string '%s' in %s",
+                                self.device.name,
+                                mode,
+                                raw_modes,
+                            )
+                    else:
+                        _LOGGER.debug(
+                            "%s: Ignoring unsupported color mode type %s in %s",
+                            self.device.name,
+                            type(mode),
+                            raw_modes,
+                        )
+                if normalized_modes:
+                    return normalized_modes
+            _LOGGER.warning(
+                "%s: Unexpected supported_color_modes value: %s",
+                self.device.name,
+                raw_modes,
+            )
+            return {ColorMode.ONOFF}
 
         if self.channel.has(ATTR_RGBWW_COLOR):
             self._attr_supported_color_modes = {ColorMode.RGBWW}
