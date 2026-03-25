@@ -225,31 +225,13 @@ class UniledDevice:
         for callback in self._callbacks:
             callback(self)
 
-    def get_list(self, channel_id: int, name: str) -> list:
-        """Get a channel (id) attribute list."""
-        if channel := self.channel(channel_id) is not None:
-            return self.get_list(channel, name)
-        return []
-
     def get_list(self, channel: UniledChannel, name: str) -> list:
         """Get a channel attribute list."""
         return self._model.fetch_attribute_list(self, channel, name)
 
-    def get_state(self, channel_id: int, name: str, default: Any = None) -> Any:
-        """Get a channel (id) attribute state."""
-        if channel := self.channel(channel_id) is not None:
-            return self.get_state(channel, name, default)
-        return default
-
     def get_state(self, channel: UniledChannel, name: str, default: Any = None) -> Any:
         """Get a channel attribute state."""
         return channel.get(name, default)
-
-    async def async_set_state(self, channel_id: int, attr: str, state: Any) -> bool:
-        """Set a channel (id) attribute state."""
-        if not (channel := self.channel(channel_id)):
-            return False
-        return await self.async_set_state(self, channel, attr, state)
 
     async def async_set_state(
         self, channel: UniledChannel, attr: str, state: Any
@@ -264,12 +246,6 @@ class UniledDevice:
                 channel.refresh()
             return success
         return False
-
-    async def async_set_multi_state(self, channel_id: int, **kwargs) -> None:
-        """Set a channel (id) multi attribute states."""
-        if not (channel := self.channel(channel_id)):
-            return False
-        return await self.async_set_multi_state(self, channel, **kwargs)
 
     async def async_set_multi_state(self, channel: UniledChannel, **kwargs) -> bool:
         """Set a channel multi attribute states."""

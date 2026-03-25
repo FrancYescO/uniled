@@ -18,10 +18,11 @@ _LOGGER = logging.getLogger(__name__)
 class UniledStatus:
     """UniLED Channel Status Class"""
 
-    def __init__(self, channel: UniledChannel, status: dict = {}) -> None:
+    def __init__(self, channel: UniledChannel, status: dict | None = None) -> None:
         self._channel: UniledChannel = channel
         self._status: dict = dict()
-        self._status.update(status)
+        if status:
+            self._status.update(status)
 
     def __getattr__(self, attr):
         if str(attr).startswith("_"):
@@ -53,7 +54,7 @@ class UniledStatus:
 
     def has(self, attr: str) -> bool:
         """Does a single status attribute exist"""
-        return True if attr in self._status else False
+        return attr in self._status
 
     def replace(self, status: dict, refresh: bool = False) -> None:
         """Replace the status attributes"""

@@ -237,11 +237,13 @@ class UniledNetDevice(UniledDevice):
     async def _execute_commands(self, commands: list[bytes]) -> bool:
         """Execute command(s)."""
         self._connect_if_disconnected()
-        for command in commands:
+        last_index = len(commands) - 1
+        for i, command in enumerate(commands):
             if self.available and command:
                 if not await self._execute_transaction(command):
                     return False
-            await asyncio.sleep(UNILED_NET_COMMAND_SETTLE_DELAY)
+            if i < last_index:
+                await asyncio.sleep(UNILED_NET_COMMAND_SETTLE_DELAY)
         if self._model.close_after_send:
             self._close()
         return True
@@ -315,34 +317,35 @@ class UniledNetDevice(UniledDevice):
         remaining = expected
         rx = bytearray()
         begin = time.monotonic()
-        while remaining > 0:
-            timeout_left = self._timeout - (time.monotonic() - begin)
-            if timeout_left <= 0:
-                break
-            try:
-                self._socket.setblocking(False)
-                read_ready, _, _ = select.select([self._socket], [], [], timeout_left)
-                if not read_ready:
-                    _LOGGER.debug("%s: timed out reading %d bytes", self.name, expected)
+        self._socket.setblocking(False)
+        try:
+            while remaining > 0:
+                timeout_left = self._timeout - (time.monotonic() - begin)
+                if timeout_left <= 0:
                     break
-                chunk = self._socket.recv(remaining)
-                chunk_size = len(chunk) if chunk else 0
-                if chunk:
+                try:
+                    read_ready, _, _ = select.select([self._socket], [], [], timeout_left)
+                    if not read_ready:
+                        _LOGGER.debug("%s: timed out reading %d bytes", self.name, expected)
+                        break
+                    chunk = self._socket.recv(remaining)
+                    if not chunk:
+                        _LOGGER.debug("%s: connection closed during read", self.name)
+                        break
                     _LOGGER.debug(
                         "%s <= %s (%d)",
                         self.name,
                         "".join(f"{x:02X}" for x in chunk),
-                        chunk_size,
+                        len(chunk),
                     )
                     begin = time.monotonic()
-                elif chunk_size == 0:
-                    await asyncio.sleep(UNILED_NET_ERROR_BACKOFF_TIME)
-                remaining -= chunk_size
-                rx.extend(chunk)
-            except OSError as ex:
-                _LOGGER.debug("%s: socket error (%s): %s", self.name, self.host, ex)
-            finally:
-                self._socket.setblocking(True)
+                    remaining -= len(chunk)
+                    rx.extend(chunk)
+                except OSError as ex:
+                    _LOGGER.debug("%s: socket error (%s): %s", self.name, self.host, ex)
+                    break
+        finally:
+            self._socket.setblocking(True)
         return rx
 
     def _connect_if_disconnected(self) -> None:
