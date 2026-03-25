@@ -253,6 +253,9 @@ class UniledDevice:
         if not commands:
             return True
         success = await self.send(commands)
+        if success:
+            for attr, state in kwargs.items():
+                channel.set(attr, state, True)
         channel.refresh()
         return success
 

@@ -429,11 +429,13 @@ class UniledLightEntity(
                 await self.update_during_transition(gradual)
             # self.coordinator.async_set_updated_data(None)
 
+        # Always confirm state after success; also refresh on failure if the
+        # device model requires it (ATTR_UL_DEVICE_FORCE_REFRESH), so that HA
+        # stays in sync with actual device state. Skip during gradual transitions
+        # as those use a postponed refresh instead.
         if (
-            self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False)
-            and success
-            and not gradual
-        ):
+            self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False) or success
+        ) and not gradual:
             await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
             await self.coordinator.async_request_refresh()
 
