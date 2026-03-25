@@ -19,6 +19,11 @@ on:
         description: 'Mark as pre-release'
         required: false
         default: 'true'
+  push:
+    branches:
+      - main
+    paths:
+      - 'custom_components/uniled/manifest.json'
 
 permissions:
   contents: write
@@ -31,10 +36,37 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve release parameters
+        id: params
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_NAME: ${{ github.event.inputs.name }}
+          INPUT_BODY: ${{ github.event.inputs.body }}
+          INPUT_PRERELEASE: ${{ github.event.inputs.prerelease }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+            echo "name=$INPUT_NAME" >> "$GITHUB_OUTPUT"
+            echo "body=$INPUT_BODY" >> "$GITHUB_OUTPUT"
+            echo "prerelease=$INPUT_PRERELEASE" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=$(jq -r '.version' custom_components/uniled/manifest.json)
+            VERSION_ESC=$(printf '%s' "$VERSION" | sed 's/\./\\./g')
+            LAST_BETA=$(git tag --list "${VERSION}-beta.*" | sed "s/${VERSION_ESC}-beta\.//" | grep -E '^[0-9]+$' | sort -n | tail -1)
+            LAST_BETA=${LAST_BETA:-0}
+            NEXT_BETA=$(( LAST_BETA + 1 ))
+            TAG="${VERSION}-beta.${NEXT_BETA}"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "name=v${VERSION} Beta ${NEXT_BETA}" >> "$GITHUB_OUTPUT"
+            echo "body=Release ${VERSION} Beta ${NEXT_BETA}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create tag
         env:
-          TAG: ${{ github.event.inputs.tag }}
-          NAME: ${{ github.event.inputs.name }}
+          TAG: ${{ steps.params.outputs.tag }}
+          NAME: ${{ steps.params.outputs.name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -44,10 +76,10 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.inputs.tag }}
-          NAME: ${{ github.event.inputs.name }}
-          BODY: ${{ github.event.inputs.body }}
-          PRERELEASE: ${{ github.event.inputs.prerelease }}
+          TAG: ${{ steps.params.outputs.tag }}
+          NAME: ${{ steps.params.outputs.name }}
+          BODY: ${{ steps.params.outputs.body }}
+          PRERELEASE: ${{ steps.params.outputs.prerelease }}
         run: |
           PRERELEASE_FLAG=""
           if [ "$PRERELEASE" = "true" ]; then
