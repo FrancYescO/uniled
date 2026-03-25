@@ -32,21 +32,28 @@ jobs:
           fetch-depth: 0
 
       - name: Create tag
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          NAME: ${{ github.event.inputs.name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ github.event.inputs.tag }}" -m "${{ github.event.inputs.name }}"
-          git push origin "${{ github.event.inputs.tag }}"
+          git tag -a "$TAG" -m "$NAME"
+          git push origin "$TAG"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag }}
+          NAME: ${{ github.event.inputs.name }}
+          BODY: ${{ github.event.inputs.body }}
+          PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: |
           PRERELEASE_FLAG=""
-          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+          if [ "$PRERELEASE" = "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
-          gh release create "${{ github.event.inputs.tag }}" \
-            --title "${{ github.event.inputs.name }}" \
-            --notes "${{ github.event.inputs.body }}" \
+          gh release create "$TAG" \
+            --title "$NAME" \
+            --notes "$BODY" \
             $PRERELEASE_FLAG
