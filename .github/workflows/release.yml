@@ -39,12 +39,14 @@ jobs:
           git push origin "${{ github.event.inputs.tag }}"
 
       - name: Create GitHub release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.tag }}
-          release_name: ${{ github.event.inputs.name }}
-          body: ${{ github.event.inputs.body }}
-          draft: false
-          prerelease: ${{ github.event.inputs.prerelease }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "${{ github.event.inputs.tag }}" \
+            --title "${{ github.event.inputs.name }}" \
+            --notes "${{ github.event.inputs.body }}" \
+            $PRERELEASE_FLAG
