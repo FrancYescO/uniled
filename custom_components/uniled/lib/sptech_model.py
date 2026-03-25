@@ -947,10 +947,7 @@ class SPTechModel(SPTechFX):
         mode = channel.status.light_mode_number
         if cfg and mode is not None:
             if (fxlist := cfg.dictof_mode_effects(mode)) is not None:
-                effects = list()
-                for fx in fxlist:
-                    effects.append(str(fxlist[fx].name))
-                return effects
+                return [str(fx.name) for fx in fxlist.values()]
         return None
 
     def build_effect_speed_command(
@@ -1062,13 +1059,11 @@ class SPTechModel(SPTechFX):
 
     def fetch_light_type_list(
         self, device: UniledDevice, channel: UniledChannel
-    ) -> list | None:
+    ) -> list:
         """Return list of light types"""
-        listing = list()
         if self.configs is not None:
-            for _, cfg in self.configs.items():
-                listing.append(str(cfg.name))
-        return listing
+            return [str(cfg.name) for cfg in self.configs.values()]
+        return []
 
     def build_chip_order_command(
         self, device: UniledDevice, channel: UniledChannel, value: str | None = None
