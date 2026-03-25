@@ -341,11 +341,16 @@ class UniledNetDevice(UniledDevice):
                     begin = time.monotonic()
                     remaining -= len(chunk)
                     rx.extend(chunk)
+                except (BlockingIOError, InterruptedError) as ex:
+                    _LOGGER.debug(
+                        "%s: transient socket error (%s): %s", self.name, self.host, ex
+                    )
+                    continue
                 except OSError as ex:
                     _LOGGER.debug("%s: socket error (%s): %s", self.name, self.host, ex)
                     break
         finally:
-            self._socket.setblocking(True)
+            self._socket.settimeout(self._timeout)
         return rx
 
     def _connect_if_disconnected(self) -> None:
