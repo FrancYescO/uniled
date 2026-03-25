@@ -239,6 +239,7 @@ class UniledDevice:
         """Set a channel attribute state."""
         command = self._model.build_command(self, channel, attr, state)
         if command:
+            channel.refresh()  # Optimistically notify entities of the pre-set state
             success = await self.send(command) if command else False
             if success:
                 channel.set(attr, state, True)
@@ -252,6 +253,7 @@ class UniledDevice:
         commands = self._model.build_multi_commands(self, channel, **kwargs)
         if not commands:
             return True
+        channel.refresh()  # Optimistically notify entities of the pre-set state
         success = await self.send(commands)
         if success:
             for attr, state in kwargs.items():
