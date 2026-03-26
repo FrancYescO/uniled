@@ -57,6 +57,7 @@ from .const import (
     ATTR_UL_SUGGESTED_AREA,
     ATTR_UL_TOTAL_PIXELS,
     DOMAIN,
+    UNILED_COMMAND_SETTLE_TIME,
     UNILED_ENTITY_ATTRIBUTES,
     UNILED_OPTIONS_ATTRIBUTES,
     # UNILED_SIGNAL_STATE_UPDATED,
@@ -275,14 +276,21 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
 
     async def _async_state_change(self, value: Any) -> None:
         """Update device with new entity value/state."""
-        success = await self.device.async_set_state(
-            self.channel, self.feature.attr, value
-        )
+        async with self.coordinator.lock:
+            success = await self.device.async_set_state(
+                self.channel, self.feature.attr, value
+            )
         if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False):
-            # await self.coordinator.async_request_refresh()
-            await self.coordinator.async_refresh()
+            # For forced refresh, still allow the device time to apply the command
+            # and use the debounced refresh path to avoid stale state reversion.
+            await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
+            await self.coordinator.async_request_refresh()
+        elif success:
+            await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
+            await self.coordinator.async_request_refresh()
         else:
             self._async_update_attrs()
+            self.async_write_ha_state()
         if self.feature.reload and success:
             ## TODO Can we warn the user there will be a reload??
             await self._async_delayed_reload(self.hass, self.coordinator.entry)
