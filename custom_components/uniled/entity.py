@@ -281,8 +281,10 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
                 self.channel, self.feature.attr, value
             )
         if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False):
-            # await self.coordinator.async_request_refresh()
-            await self.coordinator.async_refresh()
+            # For forced refresh, still allow the device time to apply the command
+            # and use the debounced refresh path to avoid stale state reversion.
+            await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
+            await self.coordinator.async_request_refresh()
         elif success:
             await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
             await self.coordinator.async_request_refresh()
