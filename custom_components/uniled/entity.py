@@ -61,6 +61,7 @@ from .const import (
     UNILED_ENTITY_ATTRIBUTES,
     UNILED_OPTIONS_ATTRIBUTES,
     # UNILED_SIGNAL_STATE_UPDATED,
+    UNILED_NET_COMMAND_SETTLE_TIME,
     UNILED_STATE_CHANGE_LATENCY,
 )
 from .coordinator import UniledUpdateCoordinator
@@ -280,13 +281,15 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
             success = await self.device.async_set_state(
                 self.channel, self.feature.attr, value
             )
-        if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False):
-            # For forced refresh, still allow the device time to apply the command
-            # and use the debounced refresh path to avoid stale state reversion.
-            await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
-            await self.coordinator.async_request_refresh()
-        elif success:
-            await asyncio.sleep(UNILED_COMMAND_SETTLE_TIME)
+        if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False) or success:
+            # Allow the device time to apply the command before polling for confirmation.
+            # WiFi (NET) devices need more time to update their state than BLE/ZNG devices.
+            settle = (
+                UNILED_NET_COMMAND_SETTLE_TIME
+                if self.device.transport == UNILED_TRANSPORT_NET
+                else UNILED_COMMAND_SETTLE_TIME
+            )
+            await asyncio.sleep(settle)
             await self.coordinator.async_request_refresh()
         else:
             self._async_update_attrs()
