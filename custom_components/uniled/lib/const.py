@@ -10,7 +10,8 @@ UNILED_DEVICE_TIMEOUT: Final = 40
 UNILED_REFRESH_DELAY: Final = 1.0
 UNILED_DISCONNECT_DELAY: Final = 10.0
 UNILED_COMMAND_SETTLE_DELAY: Final = 0.4  # Delay between consecutive commands
-UNILED_COMMAND_SETTLE_TIME: Final = 0.3   # Settle time before coordinator refresh after a command
+UNILED_COMMAND_SETTLE_TIME: Final = 0.3   # Settle time before coordinator refresh after a command (BLE/ZNG)
+UNILED_NET_COMMAND_SETTLE_TIME: Final = 1.5  # Longer settle time for WiFi (NET) devices
 UNILED_STATE_CHANGE_LATENCY: Final = 2.0
 
 UNILED_DISCOVERY: Final = "uniled_discovery"
