@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 import logging
-from typing import Any, Final
+from typing import Any
 
 import voluptuous as vol
 
@@ -62,6 +62,7 @@ from .lib.const import (
     ATTR_UL_LIGHT_MODE,
     ATTR_UL_RGB2_COLOR,
     ATTR_UL_SENSITIVITY,
+    UNILED_COMMAND_SETTLE_TIME,
     UNILED_DEFAULT_MAX_KELVIN,
     UNILED_DEFAULT_MIN_KELVIN,
 )
@@ -72,8 +73,6 @@ PARALLEL_UPDATES = 1
 
 # Legacy HA light attribute kept for backward compatibility with UniLED internals
 ATTR_COLOR_TEMP_LEGACY = "color_temp"
-
-UNILED_COMMAND_SETTLE_TIME: Final = 0.3
 
 
 async def async_setup_entry(
