@@ -126,54 +126,54 @@ class SP6XXE(UniledProxy):
             0x8C: SP6XXE_8C(),  # SPI - RGB + 2 CH PWM
         }
 
-    class SP631E_SP641E(SPTechSig):
+    class SP631E_SP641E_SP651E(SPTechSig):
         info = "PWM Single Color (Music) Controller"
-        code = {0x20: "SP631E", 0x2C: "SP641E"}
+        code = {0x20: "SP631E", 0x2C: "SP641E", 0x38: "SP651E"}
         conf = {0x01: SP6XXE_81()}
 
-    class SP632E_SP642E(SPTechSig):
+    class SP632E_SP642E_SP652E(SPTechSig):
         info = "PWM CCT (Music) Controller"
-        code = {0x21: "SP632E", 0x2D: "SP642E", 0x4A: "SP642E"}
+        code = {0x21: "SP632E", 0x2D: "SP642E", 0x4A: "SP642E", 0x39: "SP652E"}
         conf = {0x03: SP6XXE_83()}
 
-    class SP633E_SP643E(SPTechSig):
+    class SP633E_SP643E_SP653E(SPTechSig):
         info = "PWM RGB (Music) Controller"
-        code = {0x22: "SP633E", 0x2E: "SP643E"}
+        code = {0x22: "SP633E", 0x2E: "SP643E", 0x3A: "SP653E"}
         conf = {0x05: SP6XXE_85()}
 
-    class SP634E_SP644E(SPTechSig):
+    class SP634E_SP644E_SP654E(SPTechSig):
         info = "PWM RGBW (Music) Controller"
-        code = {0x23: "SP634E", 0x2F: "SP644E"}
+        code = {0x23: "SP634E", 0x2F: "SP644E", 0x3B: "SP654E"}
         conf = {0x07: SP6XXE_87()}
 
-    class SP635E_SP645E(SPTechSig):
+    class SP635E_SP645E_SP655E(SPTechSig):
         info = "PWM RGBCCT (Music) Controller"
-        code = {0x24: "SP635E", 0x30: "SP645E"}
+        code = {0x24: "SP635E", 0x30: "SP645E", 0x3C: "SP655E"}
         conf = {0x0A: SP6XXE_8A()}
 
-    class SP636E_SP646E(SPTechSig):
+    class SP636E_SP646E_SP656E(SPTechSig):
         info = "SPI Single Color (Music) Controller"
-        code = {0x25: "SP636E", 0x31: "SP646E"}
+        code = {0x25: "SP636E", 0x31: "SP646E", 0x3D: "SP656E"}
         conf = {0x02: SP6XXE_82()}
 
-    class SP637E_SP647E(SPTechSig):
+    class SP637E_SP647E_SP657E(SPTechSig):
         info = "SPI CCT (Music) Controller"
-        code = {0x26: "SP637E", 0x32: "SP647E"}
+        code = {0x26: "SP637E", 0x32: "SP647E", 0x3E: "SP657E"}
         conf = {0x04: SP6XXE_84(), 0x0D: SP6XXE_8D()}
 
-    class SP638E_SP648E(SPTechSig):
+    class SP638E_SP648E_SP658E(SPTechSig):
         info = "SPI RGB (Music) Controller"
-        code = {0x27: "SP638E", 0x33: "SP648E", 0x45: "SP648E", 0x4C: "SP648E", 0x68: "SP648E"}
+        code = {0x27: "SP638E", 0x33: "SP648E", 0x45: "SP648E", 0x4C: "SP648E", 0x68: "SP648E", 0x3F: "SP658E"}
         conf = {0x06: SP6XXE_86()}
 
-    class SP639E_SP649E(SPTechSig):
+    class SP639E_SP649E_SP659E(SPTechSig):
         info = "SPI RGBW (Music) Controller"
-        code = {0x28: "SP639E", 0x34: "SP649E"}
+        code = {0x28: "SP639E", 0x34: "SP649E", 0x40: "SP659E"}
         conf = {0x08: SP6XXE_88()}
 
-    class SP63AE_SP64AE(SPTechSig):
+    class SP63AE_SP64AE_SP65AE(SPTechSig):
         info = "SPI RGBCCT (Music) Controller"
-        code = {0x29: "SP63AE", 0x35: "SP64AE"}
+        code = {0x29: "SP63AE", 0x35: "SP64AE", 0x41: "SP65AE"}
         conf = {0x0B: SP6XXE_8B(), 0x0E: SP6XXE_8E()}
 
     class SP63BE_SP64BE(SPTechSig):
@@ -188,16 +188,16 @@ class SP6XXE(UniledProxy):
 
     MODEL_SIGNATURE_LIST: Final = [
         SP630E,
-        SP631E_SP641E,
-        SP632E_SP642E,
-        SP633E_SP643E,
-        SP634E_SP644E,
-        SP635E_SP645E,
-        SP636E_SP646E,
-        SP637E_SP647E,
-        SP638E_SP648E,
-        SP639E_SP649E,
-        SP63AE_SP64AE,
+        SP631E_SP641E_SP651E,
+        SP632E_SP642E_SP652E,
+        SP633E_SP643E_SP653E,
+        SP634E_SP644E_SP654E,
+        SP635E_SP645E_SP655E,
+        SP636E_SP646E_SP656E,
+        SP637E_SP647E_SP657E,
+        SP638E_SP648E_SP658E,
+        SP639E_SP649E_SP659E,
+        SP63AE_SP64AE_SP65AE,
         SP63BE_SP64BE,
         SP63CE_SP64CE,
     ]

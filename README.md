@@ -25,16 +25,16 @@
   - **SP623E** - Mini PWM RGB Controller
   - **SP624E** - Mini PWM RGBW Controller
   - **SP530E** / **SP630E** - PWM/SPI RGB, RGBW, RGBCCT Controller
-  - **SP631E** / **SP641E** - PWM Single Color Controllers
-  - **SP632E** / **SP642E** - PWM CCT Controllers
-  - **SP633E** / **SP643E** - PWM RGB Controllers
-  - **SP634E** / **SP644E** - PWM RGBW Controllers
-  - **SP635E** / **SP645E** - PWM RGBCCT Controllers
-  - **SP636E** / **SP646E** - SPI Single Color Controllers
-  - **SP637E** / **SP647E** - SPI CCT Controllers
-  - **SP538E** / **SP548E** / **SP638E** / **SP648E** - SPI RGB Controllers
-  - **SP539E** / **SP549E** / **SP639E** / **SP649E** - SPI RGBW Controllers
-  - **SP63AE** / **SP64AE** - SPI RGBCCT Controllers
+  - **SP631E** / **SP641E** / **SP651E** - PWM Single Color Controllers
+  - **SP632E** / **SP642E** / **SP652E** - PWM CCT Controllers
+  - **SP633E** / **SP643E** / **SP653E** - PWM RGB Controllers
+  - **SP634E** / **SP644E** / **SP654E** - PWM RGBW Controllers
+  - **SP635E** / **SP645E** / **SP655E** - PWM RGBCCT Controllers
+  - **SP636E** / **SP646E** / **SP656E** - SPI Single Color Controllers
+  - **SP537E** / **SP637E** / **SP647E** / **SP657E** - SPI CCT Controllers
+  - **SP538E** / **SP548E** / **SP638E** / **SP648E** / **SP658E** - SPI RGB Controllers
+  - **SP539E** / **SP549E** / **SP639E** / **SP649E** / **SP659E** - SPI RGBW Controllers
+  - **SP63AE** / **SP64AE** / **SP65AE** - SPI RGBCCT Controllers
   - **SP63BE** / **SP64BE** - SPI RGB+1CH PWM Controllers
   - **SP63CE** / **SP64CE** - SPI RGB+2CH PWM Controllers
 
