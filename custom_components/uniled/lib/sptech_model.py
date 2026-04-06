@@ -774,7 +774,7 @@ class SPTechModel(SPTechFX):
             )
         elif (mode := int(value)) not in self.DICTOF_ON_POWER_STATES:
             return None
-        return self.__encoder(self.cmd.ON_POWER, bytearray([mode]))
+        return self.__encoder(device, self.cmd.ON_POWER, bytearray([mode]))
 
     def fetch_on_power_list(
         self, device: UniledDevice, channel: UniledChannel
@@ -1093,7 +1093,7 @@ class SPTechModel(SPTechFX):
             if light_type in self.configs:
                 return self.configs[light_type]
             if len(self.configs) > 1:
-                return next(iter(self.configs))
+                return self.configs[next(iter(self.configs))]
         return None
 
     def match_channel_effect_type(
