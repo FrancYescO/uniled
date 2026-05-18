@@ -47,6 +47,11 @@ class UniledUpdateCoordinator(DataUpdateCoordinator):
         """Destroy the class."""
         _LOGGER.debug("%s: Coordinator destroyed", self.device.name)
 
+    async def async_try_initial_refresh(self) -> None:
+        """Attempt an initial refresh without failing entry setup or logging errors."""
+        async with self._debounced_refresh.async_lock():
+            await self._async_refresh(log_failures=False)
+
     async def _async_update(self) -> None:
         """Fetch all device and sensor data from api."""
 
