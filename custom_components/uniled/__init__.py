@@ -29,7 +29,6 @@ from homeassistant.const import (
 from homeassistant.core import CoreState, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import (
-    config_validation as cv,
     device_registry as dr,
     entity_registry as er,
 )
@@ -46,7 +45,6 @@ from .const import (
     CONF_UL_TRANSPORT as CONF_TRANSPORT,
     DOMAIN,
     UNILED_COMMAND_SETTLE_DELAY,
-    UNILED_DEVICE_TIMEOUT,
     UNILED_DISCOVERY,
     UNILED_DISCOVERY_INTERVAL,
     UNILED_DISCOVERY_SCAN_TIMEOUT,
@@ -57,7 +55,6 @@ from .const import (
 from .coordinator import UniledUpdateCoordinator
 from .discovery import (
     async_build_cached_discovery,
-    async_clear_discovery_cache,
     async_discover_device,
     async_discover_devices,
     async_trigger_discovery,
@@ -241,39 +238,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Failed to startup")
 
     if not coordinator.device.available:
-        ## Device is not available, so attempt a connection
-        startup_event = asyncio.Event()
-        cancel_first_update = coordinator.device.register_callback(
-            lambda *_: startup_event.set()
-        )
         _LOGGER.debug(
-            "*** Awaiting UniLED Device: %s, first response", coordinator.device.name
+            "%s: Device unavailable during setup, loading entities as unavailable",
+            coordinator.device.name,
         )
-
-        try:
-            await coordinator.async_config_entry_first_refresh()
-        except ConfigEntryNotReady:
-            _LOGGER.warning("%s: First update attempt failed!", coordinator.device.name)
-            cancel_first_update()
-            await _async_shutdown_coordinator(hass, coordinator)
-            del coordinator
-            gc.collect()
-            raise
-
-        try:
-            async with asyncio.timeout(UNILED_DEVICE_TIMEOUT):
-                await startup_event.wait()
-                cancel_first_update()
-                _LOGGER.debug(
-                    "*** Response from UniLED Device: %s", coordinator.device.name
-                )
-
-        except TimeoutError as ex:
-            cancel_first_update()
-            await _async_shutdown_coordinator(hass, coordinator)
-            del coordinator
-            gc.collect()
-            raise ConfigEntryNotReady("No response from device") from ex
+        await coordinator.async_try_initial_refresh()
 
     if transport == UNILED_TRANSPORT_NET:
 
