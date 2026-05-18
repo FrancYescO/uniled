@@ -210,17 +210,33 @@ class UniledNetDevice(UniledDevice):
                 self.name,
             )
 
+        was_available = self._available
+
         async with self._lock:
             for attempt in range(max_attempts):
                 try:
-                    return await self._execute_commands(commands)
+                    result = await self._execute_commands(commands)
+                    if not was_available and self._available:
+                        _LOGGER.warning(
+                            "%s: Communication restored, device is now available!",
+                            self.name,
+                        )
+                    return result
                 except Exception as ex:  # noqa: BLE001
                     if attempt == retry:
-                        _LOGGER.error(
-                            "%s: Communication failed: %s, stopping trying!",
-                            self.name,
-                            str(ex),
-                        )
+                        if was_available:
+                            _LOGGER.warning(
+                                "%s: Communication failed: %s, device is now unavailable!",
+                                self.name,
+                                str(ex),
+                            )
+                        else:
+                            _LOGGER.debug(
+                                "%s: Communication failed: %s, device still unavailable",
+                                self.name,
+                                str(ex),
+                            )
+                        self.set_unavailable(str(ex))
                         return False
                     _LOGGER.debug(
                         "%s: Communication failed with: %s, retry attempt %s of %s",
