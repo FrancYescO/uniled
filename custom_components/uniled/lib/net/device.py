@@ -216,13 +216,16 @@ class UniledNetDevice(UniledDevice):
             for attempt in range(max_attempts):
                 try:
                     result = await self._execute_commands(commands)
-                    if not was_available and self._available:
-                        _LOGGER.warning(
-                            "%s: Communication restored, device is now available!",
-                            self.name,
-                        )
-                    return result
+                    if result:
+                        if not was_available and self._available:
+                            _LOGGER.warning(
+                                "%s: Communication restored, device is now available!",
+                                self.name,
+                            )
+                        return True
+                    raise RuntimeError("Device transaction failed")
                 except Exception as ex:  # noqa: BLE001
+                    self._close()
                     if attempt == retry:
                         if was_available:
                             _LOGGER.warning(
@@ -238,6 +241,15 @@ class UniledNetDevice(UniledDevice):
                             )
                         self.set_unavailable(str(ex))
                         return False
+                    if not was_available and self._available:
+                        _LOGGER.warning(
+                            "%s: Communication restored but update failed: %s; "
+                            "retry attempt %s of %s",
+                            self.name,
+                            str(ex),
+                            attempt + 1,
+                            max_attempts,
+                        )
                     _LOGGER.debug(
                         "%s: Communication failed with: %s, retry attempt %s of %s",
                         self.name,
@@ -245,7 +257,6 @@ class UniledNetDevice(UniledDevice):
                         attempt + 1,
                         max_attempts,
                     )
-                self._close()
                 await asyncio.sleep(UNILED_NET_ERROR_BACKOFF_TIME)
 
         raise RuntimeError("Unreachable")
