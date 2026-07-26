@@ -256,6 +256,28 @@ class UniledDevice:
         channel.refresh()
         return success
 
+    @property
+    def supports_audio_spectrum(self) -> bool:
+        """Return whether the model supports host-driven audio spectrum data."""
+        return bool(
+            getattr(self._model, "audio_spectrum_supported", False)
+        ) and callable(
+            getattr(self._model, "build_audio_spectrum_command", None),
+        )
+
+    async def async_send_audio_spectrum(
+        self, channel: UniledChannel, spectrum: list[int]
+    ) -> bool:
+        """Send transient host-driven audio spectrum data."""
+        if not self.supports_audio_spectrum:
+            return False
+        command_builder = getattr(
+            self._model, "build_audio_spectrum_command", None
+        )
+        if not callable(command_builder):
+            return False
+        return await self.send(command_builder(self, channel, spectrum))
+
     @abstractmethod
     def match_model_name(self, name: str) -> UniledModel | None:
         """Match a device model code(s)."""

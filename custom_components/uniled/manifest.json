@@ -43,8 +43,9 @@
     "uniled_scanner"
   ],
   "requirements": [
+    "async-timeout>=4.0.3",
     "pycryptodome>=3.17",
     "cryptography"
   ],
-  "version": "3.1.0"
+  "version": "3.2.0"
 }

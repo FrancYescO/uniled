@@ -57,6 +57,7 @@ UNILED_AUDIO_INPUT_AUX_IN: Final = "Aux In"
 UNILED_AUDIO_INPUT_INTMIC: Final = "Int. Mic"
 UNILED_AUDIO_INPUT_EXTMIC: Final = "Ext. Mic"
 UNILED_AUDIO_INPUT_PLAYER: Final = "Player"
+ATTR_UL_AUDIO_SPECTRUM: Final = "audio_spectrum"
 
 # Home Assistant Config Keys
 CONF_HA_ADDRESS: Final = "address"

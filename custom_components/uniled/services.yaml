@@ -23,6 +23,7 @@ set_state:
         number:
           min: 0
           max: 255
+
     effect_length:
       name: Effect Length
       description: Set the length of an effect.
@@ -30,6 +31,7 @@ set_state:
         number:
           min: 0
           max: 255
+
     effect_direction:
       name: Effect Direction
       description: Set the direction of an effect.
@@ -82,3 +84,19 @@ set_state:
         number:
           min: 0
           max: 255
+
+send_audio_spectrum:
+  name: Send Audio Spectrum
+  description: Send host-generated audio spectrum data to a compatible UniLED controller in Player mode.
+  target:
+    entity:
+      integration: uniled
+      domain: light
+  fields:
+    audio_spectrum:
+      name: Audio Spectrum
+      description: One to sixteen frequency-band magnitudes ordered from low to high frequency. Missing bands are zero-padded.
+      required: true
+      example: "[0, 4, 12, 30, 64, 96, 128, 180, 220, 180, 128, 96, 64, 30, 12, 4]"
+      selector:
+        object:

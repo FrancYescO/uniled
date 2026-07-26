@@ -67,6 +67,25 @@ After installing HACS, visit the HACS _Integrations_ pane and add `https://githu
 6. Restart Home Assistant
 7. In the HA UI go to "Settings" -> "Devices & Services" -> "Integrations" click "+" and search for "Universal Light Controller"
 
+### Experimental Player audio spectrum
+
+Compatible BanlanX v2 music controllers can render a host-generated,
+16-band audio spectrum while their audio input is set to **Player** and a
+sound-reactive effect is selected. Call the `uniled.send_audio_spectrum`
+action repeatedly at approximately 10 Hz:
+
+```yaml
+action: uniled.send_audio_spectrum
+target:
+  entity_id: light.your_uniled_controller
+data:
+  audio_spectrum: [0, 4, 12, 30, 64, 96, 128, 180, 220, 180, 128, 96, 64, 30, 12, 4]
+```
+
+The action accepts between one and sixteen byte values ordered from low to
+high frequency. Missing bands are padded with zeroes. The audio capture and
+frequency analysis must be performed by the calling application.
+
 ### ✍️ Adding Devices and Model Identification Issues
 
 UniLED does it's best to identify the exact model through a number of different mechanisms, however

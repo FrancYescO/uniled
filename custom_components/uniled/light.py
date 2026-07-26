@@ -27,7 +27,8 @@ from homeassistant.components.light import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.helpers import entity_platform
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import service
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -38,6 +39,7 @@ from homeassistant.util.color import (
     rgbww_to_color_temperature,
 )
 
+from .const import DOMAIN
 from .entity import (
     AddEntitiesCallback,
     Platform,
@@ -52,6 +54,7 @@ from .lib.const import (
     ATTR_HA_MAX_MIREDS,
     ATTR_HA_MIN_COLOR_TEMP_KELVIN,
     ATTR_HA_MIN_MIREDS,
+    ATTR_UL_AUDIO_SPECTRUM,
     ATTR_UL_CCT_COLOR,
     ATTR_UL_DEVICE_FORCE_REFRESH,
     ATTR_UL_EFFECT_DIRECTION,
@@ -76,35 +79,59 @@ PARALLEL_UPDATES = 1
 # Legacy HA light attribute kept for backward compatibility with UniLED internals
 ATTR_COLOR_TEMP_LEGACY = "color_temp"
 
+SERVICE_SET_STATE = "set_state"
+SERVICE_SEND_AUDIO_SPECTRUM = "send_audio_spectrum"
+
+SET_STATE_SCHEMA = {
+    **LIGHT_TURN_ON_SCHEMA,
+    ATTR_UL_LIGHT_MODE: vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255)),
+    ATTR_UL_RGB2_COLOR: vol.All(
+        vol.Coerce(tuple), vol.ExactSequence((cv.byte,) * 3)
+    ),
+    ATTR_UL_EFFECT_LOOP: cv.boolean,
+    ATTR_UL_EFFECT_PLAY: cv.boolean,
+    ATTR_UL_EFFECT_SPEED: vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255)),
+    ATTR_UL_EFFECT_LENGTH: vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255)),
+    ATTR_UL_EFFECT_DIRECTION: cv.boolean,
+    ATTR_UL_SENSITIVITY: vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255)),
+}
+
+AUDIO_SPECTRUM_SCHEMA = {
+    vol.Required(ATTR_UL_AUDIO_SPECTRUM): vol.All(
+        cv.ensure_list,
+        [cv.byte],
+        vol.Length(min=1, max=16),
+    )
+}
+
+
+@callback
+def async_register_services(hass: HomeAssistant) -> None:
+    """Register UniLED light entity actions."""
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_SET_STATE,
+        entity_domain=Platform.LIGHT,
+        schema=SET_STATE_SCHEMA,
+        func="async_set_state",
+    )
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_SEND_AUDIO_SPECTRUM,
+        entity_domain=Platform.LIGHT,
+        schema=AUDIO_SPECTRUM_SCHEMA,
+        func="async_send_audio_spectrum",
+    )
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the UniLED number platform."""
-    # coordinator: UniledUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    platform = entity_platform.async_get_current_platform()
-
-    ## @todo Build service more dynamically!
-    ##
-    schema = {
-        **LIGHT_TURN_ON_SCHEMA,
-    }
-
-    schema[ATTR_UL_LIGHT_MODE] = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255))
-    schema[ATTR_UL_RGB2_COLOR] = vol.All(
-        vol.Coerce(tuple), vol.ExactSequence((cv.byte,) * 3)
-    )
-    schema[ATTR_UL_EFFECT_LOOP] = cv.boolean
-    schema[ATTR_UL_EFFECT_PLAY] = cv.boolean
-    schema[ATTR_UL_EFFECT_SPEED] = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255))
-    schema[ATTR_UL_EFFECT_LENGTH] = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255))
-    schema[ATTR_UL_EFFECT_DIRECTION] = cv.boolean
-    schema[ATTR_UL_SENSITIVITY] = vol.All(vol.Coerce(int), vol.Clamp(min=1, max=255))
-
-    platform.async_register_entity_service("set_state", schema, "async_set_state")
-
+    """Set up the UniLED light platform."""
     await async_uniled_entity_setup(
         hass, entry, async_add_entities, _add_light_entity, Platform.LIGHT
     )
@@ -445,6 +472,21 @@ class UniledLightEntity(
             )
             await asyncio.sleep(settle)
             await self.coordinator.async_request_refresh()
+
+    async def async_send_audio_spectrum(self, audio_spectrum: list[int]) -> None:
+        """Send a transient host-driven audio spectrum to the controller."""
+        if not self.device.supports_audio_spectrum:
+            raise HomeAssistantError(
+                f"{self.device.model_name} does not support host-driven audio spectrum"
+            )
+
+        async with self.coordinator.lock:
+            if not await self.device.async_send_audio_spectrum(
+                self.channel, audio_spectrum
+            ):
+                raise HomeAssistantError(
+                    f"Failed to send audio spectrum to {self.device.name}"
+                )
 
     async def update_during_transition(self, when: int) -> None:
         """Update state at the start and end of a transition."""

@@ -1,6 +1,8 @@
 """UniLED BLE Devices - SP LED (BanlanX v2)"""
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 from itertools import chain
 from typing import Final
 
@@ -272,6 +274,9 @@ BANLANX2_COLORABLE_EFFECTS: Final = (
     0xD6,
 )
 
+BANLANX2_AUDIO_SPECTRUM_COMMAND: Final = 0x6D
+BANLANX2_AUDIO_SPECTRUM_BANDS: Final = 16
+
 
 class BanlanX2(UniledBleModel):
     """BanlanX v2 Protocol Implementation"""
@@ -303,6 +308,11 @@ class BanlanX2(UniledBleModel):
         )
         self.colors = colors
         self.intmic = intmic
+
+    @property
+    def audio_spectrum_supported(self) -> bool:
+        """Return whether this music-capable controller accepts spectrum data."""
+        return self.intmic
 
     def parse_notifications(
         self,
@@ -681,6 +691,33 @@ class BanlanX2(UniledBleModel):
     ) -> list | None:
         """Return list of light modes"""
         return list(BANLANX2_AUDIO_INPUTS.values())
+
+    def build_audio_spectrum_command(
+        self,
+        device: UniledBleDevice,
+        channel: UniledChannel,
+        spectrum: Sequence[int],
+    ) -> bytearray:
+        """Build a host-driven Player-mode audio spectrum message.
+
+        The official app sends a 16-band spectrum approximately ten times per
+        second while Player is selected as the audio input. Values are ordered
+        from low to high frequency, clamped to one byte, and missing bands are
+        padded with zeroes.
+        """
+        bands = [
+            max(0, min(0xFF, int(value)))
+            for value in spectrum[:BANLANX2_AUDIO_SPECTRUM_BANDS]
+        ]
+        bands.extend([0] * (BANLANX2_AUDIO_SPECTRUM_BANDS - len(bands)))
+        return bytearray(
+            [
+                0xA0,
+                BANLANX2_AUDIO_SPECTRUM_COMMAND,
+                BANLANX2_AUDIO_SPECTRUM_BANDS,
+                *bands,
+            ]
+        )
 
     def build_chip_order_command(
         self, device: UniledBleDevice, channel: UniledChannel, value: str | None = None
