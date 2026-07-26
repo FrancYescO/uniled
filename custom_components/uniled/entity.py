@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import Hashable
 
 # Fix Issue #74
 # from homeassistant.backports.functools import cached_property
 from functools import cached_property, partial
-import logging
 from typing import Any, Protocol
 
 from homeassistant import config_entries
@@ -59,9 +60,9 @@ from .const import (
     DOMAIN,
     UNILED_COMMAND_SETTLE_TIME,
     UNILED_ENTITY_ATTRIBUTES,
-    UNILED_OPTIONS_ATTRIBUTES,
     # UNILED_SIGNAL_STATE_UPDATED,
     UNILED_NET_COMMAND_SETTLE_TIME,
+    UNILED_OPTIONS_ATTRIBUTES,
     UNILED_STATE_CHANGE_LATENCY,
 )
 from .coordinator import UniledUpdateCoordinator
@@ -114,22 +115,24 @@ def async_uniled_entity_update(
     async_add_entities: AddEntitiesCallback,
     async_add_entity: UniledEntityInstance,
     platform: Platform,
-    current_ids: set[int],
+    current_ids: set[tuple[int, Hashable | None]],
 ) -> None:
     """Update channels."""
     new_entities: list[UniledEntity] = []
 
-    # Process new channels, add them to Home Assistant
+    # Features may not exist yet when a device is unavailable during setup.
+    # Track each entity instead of marking the whole channel as processed so
+    # entities discovered by a later successful coordinator refresh are added.
     for channel in coordinator.device.channel_list:
-        if channel.number in current_ids:
-            continue
-        current_ids.add(channel.number)
-
-        if entity := async_add_entity(coordinator, channel, None):
+        channel_key = (channel.number, None)
+        if channel_key not in current_ids and (
+            entity := async_add_entity(coordinator, channel, None)
+        ):
             if isinstance(entity, list):
                 new_entities.extend(entity)
             else:
                 new_entities.append(entity)
+            current_ids.add(channel_key)
 
         if not channel.features:
             continue
@@ -141,8 +144,15 @@ def async_uniled_entity_update(
                 or feature.attr in UNILED_OPTIONS_ATTRIBUTES
             ):
                 continue
+            entity_key = (channel.number, feature.key)
+            if entity_key in current_ids:
+                continue
             if entity := async_add_entity(coordinator, channel, feature):
-                new_entities.append(entity)
+                if isinstance(entity, list):
+                    new_entities.extend(entity)
+                else:
+                    new_entities.append(entity)
+                current_ids.add(entity_key)
 
     if new_entities and len(new_entities) != 0:
         async_add_entities(new_entities)
