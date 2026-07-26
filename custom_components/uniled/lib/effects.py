@@ -1,15 +1,19 @@
-"""UniLED Effects"""
+"""UniLED Effects."""
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Final
+
 from .helpers import StrEnum
 
 UNILED_EFFECT_TYPE_DYNAMIC: Final = "Dynamic"
 UNILED_EFFECT_TYPE_STATIC: Final = "Static"
 UNILED_EFFECT_TYPE_SOUND: Final = "Sound"
 
+
 class UNILEDEffectType(StrEnum):
-    """Effect Mode/Type Names"""
+    """Effect Mode/Type Names."""
 
     DYNAMIC = UNILED_EFFECT_TYPE_DYNAMIC
     STATIC = UNILED_EFFECT_TYPE_STATIC
@@ -17,7 +21,7 @@ class UNILEDEffectType(StrEnum):
 
 
 class UNILEDEffects(StrEnum):
-    """Effect/Pattern Names"""
+    """Effect/Pattern Names."""
 
     BACKGROUND_STARS = "Background Stars"
     BACKGROUND_STARS_RED = "Red Background Stars"

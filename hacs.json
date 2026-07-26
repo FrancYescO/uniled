@@ -1,6 +1,6 @@
 {
-  "name": "Universal Lighting Controllers",
+  "name": "Universal Light Controller",
   "hide_default_branch": true,
   "hacs": "1.6.0",
-  "homeassistant": "2023.11"
+  "homeassistant": "2024.11"
 }

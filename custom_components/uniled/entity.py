@@ -1,12 +1,18 @@
 """Support for UniLED lights."""
+
 from __future__ import annotations
-from typing import Any, Protocol
-from abc import abstractmethod
-from functools import partial
+
+import asyncio
+import logging
+from collections.abc import Hashable
 
 # Fix Issue #74
 # from homeassistant.backports.functools import cached_property
-from functools import cached_property
+from functools import cached_property, partial
+from typing import Any, Protocol
+
+from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_CONNECTIONS,
     ATTR_HW_VERSION,
@@ -14,35 +20,33 @@ from homeassistant.const import (
     ATTR_MANUFACTURER,
     ATTR_MODEL,
     ATTR_NAME,
-    ATTR_SW_VERSION,
     ATTR_SUGGESTED_AREA,
+    ATTR_SW_VERSION,
     Platform,
 )
-from homeassistant import config_entries
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
+# from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback, EntityPlatform
 from homeassistant.helpers.typing import UndefinedType
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
     ATTR_HA_TRANSITION,
-    ATTR_UL_INFO_FIRMWARE,
-    ATTR_UL_INFO_HARDWARE,
-    ATTR_UL_INFO_MODEL_NAME,
-    ATTR_UL_INFO_MANUFACTURER,
     ATTR_UL_DEVICE_FORCE_REFRESH,
     ATTR_UL_EFFECT,
-    ATTR_UL_EFFECT_NUMBER,
+    ATTR_UL_EFFECT_DIRECTION,
+    ATTR_UL_EFFECT_LENGTH,
     ATTR_UL_EFFECT_LOOP,
+    ATTR_UL_EFFECT_NUMBER,
     ATTR_UL_EFFECT_PLAY,
     ATTR_UL_EFFECT_SPEED,
-    ATTR_UL_EFFECT_LENGTH,
-    ATTR_UL_EFFECT_DIRECTION,
+    ATTR_UL_INFO_FIRMWARE,
+    ATTR_UL_INFO_HARDWARE,
+    ATTR_UL_INFO_MANUFACTURER,
+    ATTR_UL_INFO_MODEL_NAME,
     ATTR_UL_LIGHT_MODE,
     ATTR_UL_LIGHT_MODE_NUMBER,
     ATTR_UL_MAC_ADDRESS,
@@ -53,22 +57,19 @@ from .const import (
     ATTR_UL_STATUS,
     ATTR_UL_SUGGESTED_AREA,
     ATTR_UL_TOTAL_PIXELS,
+    DOMAIN,
+    UNILED_COMMAND_SETTLE_TIME,
     UNILED_ENTITY_ATTRIBUTES,
+    # UNILED_SIGNAL_STATE_UPDATED,
+    UNILED_NET_COMMAND_SETTLE_TIME,
     UNILED_OPTIONS_ATTRIBUTES,
     UNILED_STATE_CHANGE_LATENCY,
 )
-
 from .coordinator import UniledUpdateCoordinator
-from .lib.device import UniledDevice, UniledChannel
-from .lib.attributes import (
-    UniledGroup,
-    UniledAttribute,
-)
-from .lib.net.device import UNILED_TRANSPORT_NET
+from .lib.attributes import UniledAttribute, UniledGroup
 from .lib.ble.device import UNILED_TRANSPORT_BLE
-
-import asyncio
-import logging
+from .lib.device import UniledChannel, UniledDevice
+from .lib.net.device import UNILED_TRANSPORT_NET
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,22 +115,24 @@ def async_uniled_entity_update(
     async_add_entities: AddEntitiesCallback,
     async_add_entity: UniledEntityInstance,
     platform: Platform,
-    current_ids: set[int],
+    current_ids: set[tuple[int, Hashable | None]],
 ) -> None:
     """Update channels."""
     new_entities: list[UniledEntity] = []
 
-    # Process new channels, add them to Home Assistant
+    # Features may not exist yet when a device is unavailable during setup.
+    # Track each entity instead of marking the whole channel as processed so
+    # entities discovered by a later successful coordinator refresh are added.
     for channel in coordinator.device.channel_list:
-        if channel.number in current_ids:
-            continue
-        current_ids.add(channel.number)
-
-        if entity := async_add_entity(coordinator, channel, None):
+        channel_key = (channel.number, None)
+        if channel_key not in current_ids and (
+            entity := async_add_entity(coordinator, channel, None)
+        ):
             if isinstance(entity, list):
                 new_entities.extend(entity)
             else:
                 new_entities.append(entity)
+            current_ids.add(channel_key)
 
         if not channel.features:
             continue
@@ -141,10 +144,17 @@ def async_uniled_entity_update(
                 or feature.attr in UNILED_OPTIONS_ATTRIBUTES
             ):
                 continue
+            entity_key = (channel.number, feature.key)
+            if entity_key in current_ids:
+                continue
             if entity := async_add_entity(coordinator, channel, feature):
-                new_entities.append(entity)
+                if isinstance(entity, list):
+                    new_entities.extend(entity)
+                else:
+                    new_entities.append(entity)
+                current_ids.add(entity_key)
 
-    if len(new_entities):
+    if new_entities and len(new_entities) != 0:
         async_add_entities(new_entities)
 
 
@@ -242,7 +252,7 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
     ) -> None:
         """Reload after making a change that will effect the operation of the device."""
         await asyncio.sleep(UNILED_STATE_CHANGE_LATENCY)
-        _LOGGER.warning("Reloading...")
+        _LOGGER.warning("Reloading")
         hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
 
     @callback
@@ -253,7 +263,7 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
 
     @callback
     def _async_update_attrs(self, first: bool = False) -> None:
-        """Update entity attributes"""
+        """Update entity attributes."""
         self._attr_device_info = self._async_device_info(
             self._device, self.coordinator.entry
         )
@@ -276,15 +286,24 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
         await super().async_added_to_hass()
 
     async def _async_state_change(self, value: Any) -> None:
-        """Update device with new entity value/state"""
-        success = await self.device.async_set_state(
-            self.channel, self.feature.attr, value
-        )
-        if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False):
-            # await self.coordinator.async_request_refresh()
-            await self.coordinator.async_refresh()
+        """Update device with new entity value/state."""
+        async with self.coordinator.lock:
+            success = await self.device.async_set_state(
+                self.channel, self.feature.attr, value
+            )
+        if self.channel.status.get(ATTR_UL_DEVICE_FORCE_REFRESH, False) or success:
+            # Allow the device time to apply the command before polling for confirmation.
+            # WiFi (NET) devices need more time to update their state than BLE/ZNG devices.
+            settle = (
+                UNILED_NET_COMMAND_SETTLE_TIME
+                if self.device.transport == UNILED_TRANSPORT_NET
+                else UNILED_COMMAND_SETTLE_TIME
+            )
+            await asyncio.sleep(settle)
+            await self.coordinator.async_request_refresh()
         else:
             self._async_update_attrs()
+            self.async_write_ha_state()
         if self.feature.reload and success:
             ## TODO Can we warn the user there will be a reload??
             await self._async_delayed_reload(self.hass, self.coordinator.entry)
@@ -299,7 +318,7 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
         translations = platform.object_id_platform_translations
         name_translation_key = (
             f"component.{platform.platform_name}.entity.channel.{channel_id}.name"
-        )       
+        )
         return translations.get(name_translation_key, self.channel.name)
 
     @property
@@ -318,10 +337,10 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
     def translation_key(self) -> str | None:
         """Return the translation key to translate the entity's states."""
         return self.feature.key or self.feature.attr
-    
+
     @property
     def name(self) -> str | UndefinedType | None:
-        """Return entity name"""
+        """Return entity name."""
         if (name := super().name) is None or isinstance(name, UndefinedType):
             name = self.feature.name
         channel_name = self._channel_name
@@ -329,10 +348,10 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
         if channel_name and channel_name.lower() != name.lower():
             return f"{channel_name} {name}"
         return name or channel_name
- 
+
     @property
     def available(self) -> bool:
-        """Return if entity is available"""
+        """Return if entity is available."""
         if self.feature.attr and not self.channel.has(self.feature.attr):
             return False
         if self.feature.group == UniledGroup.NEEDS_ON and not self.channel.is_on:
@@ -347,20 +366,20 @@ class UniledEntity(CoordinatorEntity[UniledUpdateCoordinator]):
 
     @property
     def id(self) -> int:
-        """Return channel id"""
+        """Return channel id."""
         return self._channel.number
 
     @property
     def channel(self) -> UniledChannel:
-        """Return UniLED channel object"""
+        """Return UniLED channel object."""
         return self._channel
 
     @property
     def feature(self) -> UniledAttribute:
-        """Return UniLED channel object"""
+        """Return UniLED channel object."""
         return self._feature
 
     @property
     def device(self) -> UniledDevice:
-        """Return UniLED device object"""
+        """Return UniLED device object."""
         return self._device

@@ -138,12 +138,12 @@ class BanlanX3(UniledBleModel):
     intmic: bool
 
     def __init__(
-        self, id: int, name: str, info: str, data: bytes, colors: int, intmic: bool
+        self, code: int, name: str, info: str, data: bytes, colors: int, intmic: bool
     ):
         super().__init__(
-            model_num=id,
+            model_code=code,
             model_name=name,
-            description=info,
+            model_info=info,
             manufacturer=BANLANX_MANUFACTURER,
             channels=1,
             ble_manufacturer_id=BANLANX_MANUFACTURER_ID,
@@ -520,39 +520,37 @@ class BanlanX3(UniledBleModel):
 ## Device Signatures
 ##
 SP613E = BanlanX3(
-    id=0x613E,
+    code=0x09,
     name="SP613E",
     info="PWM RGB (Music) Controller",
-    data=b"\x09\x00",
+    data=b"\x09",
     colors=3,
     intmic=True,
 )
 
 SP614E = BanlanX3(
-    id=0x614E,
+    code=0x0A,
     name="SP614E",
     info="PWM RGBW (Music) Controller",
-    # Fix: Issue #42 - Second byte can be different so only check first byte is '0x0a'
     data=b"\x0a",
-    # data=[b"\x0a\x00", b"\x0a\x21"],
     colors=4,
     intmic=True,
 )
 
 SP623E = BanlanX3(
-    id=0x623E,
+    code=0x0E,
     name="SP623E",
     info="Mini PWM RGB Controller",
-    data=b"\x0e\x00",
+    data=b"\x0e",
     colors=3,
     intmic=False,
 )
 
 SP624E = BanlanX3(
-    id=0x624E,
+    code=0x0F,
     name="SP624E",
     info="Mini PWM RGBB Controller",
-    data=b"\x0f\x00",
+    data=b"\x0f",
     colors=4,
     intmic=False,
 )

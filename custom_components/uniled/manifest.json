@@ -2,23 +2,49 @@
   "domain": "uniled",
   "name": "Universal Light Controller",
   "bluetooth": [
-    { "manufacturer_id": 63517 },
-    { "manufacturer_id": 21301 },
-    { "manufacturer_id": 20563 },
-    { "manufacturer_id": 5053 },
-    { "manufacturer_id": 0 },
-    { "local_name": "SP1*" }
+    {
+      "manufacturer_id": 63517
+    },
+    {
+      "manufacturer_id": 21301
+    },
+    {
+      "manufacturer_id": 20563
+    },
+    {
+      "manufacturer_id": 5053
+    },
+    {
+      "manufacturer_id": 0
+    },
+    {
+      "local_name": "SP1*"
+    }
   ],
-  "codeowners": ["@monty68"],
+  "codeowners": [
+    "@monty68"
+  ],
   "config_flow": true,
-  "dependencies": ["bluetooth_adapters"],
+  "dependencies": [
+    "network",
+    "bluetooth_adapters"
+  ],
+  "dhcp": [
+    {
+      "registered_devices": true
+    }
+  ],
   "documentation": "https://github.com/monty68/uniled",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/monty68/uniled/issues",
+  "loggers": [
+    "uniled",
+    "uniled_scanner"
+  ],
   "requirements": [
     "pycryptodome>=3.17",
     "cryptography"
   ],
-  "version": "2.2.6"
+  "version": "3.1.0"
 }

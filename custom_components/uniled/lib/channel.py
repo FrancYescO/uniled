@@ -1,4 +1,5 @@
 """UniLED Channel."""
+
 from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
@@ -17,10 +18,11 @@ _LOGGER = logging.getLogger(__name__)
 class UniledStatus:
     """UniLED Channel Status Class"""
 
-    def __init__(self, channel: UniledChannel, status: dict(str, Any) = {}) -> None:
+    def __init__(self, channel: UniledChannel, status: dict | None = None) -> None:
         self._channel: UniledChannel = channel
-        self._status: dict(str, Any) = dict()
-        self._status.update(status)
+        self._status: dict = dict()
+        if status:
+            self._status.update(status)
 
     def __getattr__(self, attr):
         if str(attr).startswith("_"):
@@ -52,21 +54,31 @@ class UniledStatus:
 
     def has(self, attr: str) -> bool:
         """Does a single status attribute exist"""
-        return True if attr in self._status else False
+        return attr in self._status
 
-    def replace(self, status: dict(str, Any), refresh: bool = False) -> None:
+    def replace(self, status: dict, refresh: bool = False) -> None:
         """Replace the status attributes"""
         self._status.clear()
         self._status.update(status)
         if refresh:
-            _LOGGER.debug("%s: Status (%s) replace:\n%s", self._channel.identity, hex(id(self._status)), self._status)
+            _LOGGER.debug(
+                "%s: Status (%s) replace:\n%s",
+                self._channel.identity,
+                hex(id(self._status)),
+                self._status,
+            )
             self.refresh()
 
-    def update(self, status: dict(str, Any), refresh: bool = False) -> None:
+    def update(self, status: dict, refresh: bool = False) -> None:
         """Update the status attributes"""
         self._status.update(status)
         if refresh:
-            _LOGGER.debug("%s: Status (%s) update:\n%s", self._channel.identity, hex(id(self._status)), self._status)
+            _LOGGER.debug(
+                "%s: Status (%s) update:\n%s",
+                self._channel.identity,
+                hex(id(self._status)),
+                self._status,
+            )
             self.refresh()
 
     def refresh(self) -> None:
@@ -76,6 +88,7 @@ class UniledStatus:
     def dump(self) -> dict:
         """Get the status dictionary"""
         return self._status
+
 
 ##
 ## UniLED Channel Class
@@ -122,7 +135,7 @@ class UniledChannel:
         return self._status
 
     @status.setter
-    def status(self, status: dict(str, Any)):
+    def status(self, status: dict):
         """Set the channels status."""
         self._status.replace(status, True)
 
@@ -143,7 +156,7 @@ class UniledChannel:
 
     @context.setter
     def context(self, value: Any):
-        """Set the channels feature list."""
+        """Set the channels context."""
         self._context = value
 
     def get(self, attr: str, default: Any = None) -> Any:
@@ -172,7 +185,9 @@ class UniledChannel:
 
         def unregister_callback() -> None:
             if callback not in self._callbacks:
-                _LOGGER.warning("attempt to unregister noexistent callback: %s", callback)
+                _LOGGER.warning(
+                    "attempt to unregister non-existent callback: %s", callback
+                )
             if callback in self._callbacks:
                 self._callbacks.remove(callback)
 
