@@ -1,5 +1,4 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]][license]
@@ -56,7 +55,7 @@
 
 You can install this component through [HACS](https://hacs.xyz/) to easily receive updates.
 
-After installing HACS, visit the HACS _Integrations_ pane and add `https://github.com/monty68/uniled` as an `Integration` by following [these instructions](https://hacs.xyz/docs/faq/custom_repositories/). You'll then be able to install it through the _Integrations_ pane.
+After installing HACS, visit the HACS _Integrations_ pane and add `https://github.com/FrancYescO/uniled` as an `Integration` by following [these instructions](https://hacs.xyz/docs/faq/custom_repositories/). You'll then be able to install it through the _Integrations_ pane.
 
 ### Manual Installation
 
@@ -96,16 +95,10 @@ If you want to contribute to UniLED, please read the [Contribution guidelines](C
 
 ***
 
-[uniled]: https://github.com/monty68/uniled
 [ha-logo]: docs/img/ha-logo-32x32.png
-[user_profile]: https://github.com/monty68
-[maintenance-shield]: https://img.shields.io/badge/maintainer-Monty-blue.svg?style=for-the-badge
-[buymecoffee]: https://www.buymeacoffee.com/monty68
-[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/v/release/monty68/uniled?display_name=release&include_prereleases&style=for-the-badge
-[releases]: https://github.com/monty68/uniled/releases
-[commits-shield]: https://img.shields.io/github/last-commit/monty68/uniled?style=for-the-badge
-[commits]: https://github.com/monty68/uniled/commits/main
-[license]: https://github.com/monty68/uniled/blob/main/LICENSE
-[license-shield]: https://img.shields.io/github/license/monty68/uniled.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/v/release/FrancYescO/uniled?display_name=release&include_prereleases&style=for-the-badge
+[releases]: https://github.com/FrancYescO/uniled/releases
+[commits-shield]: https://img.shields.io/github/last-commit/FrancYescO/uniled?style=for-the-badge
+[commits]: https://github.com/FrancYescO/uniled/commits/main
+[license]: https://github.com/FrancYescO/uniled/blob/main/LICENSE
+[license-shield]: https://img.shields.io/github/license/FrancYescO/uniled.svg?style=for-the-badge
