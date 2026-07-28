@@ -3,4 +3,4 @@
 from __future__ import annotations
 
 __name__ = "uniled_lib"
-__version__ = "3.1.1-beta.1"
+__version__ = "3.1.1"
