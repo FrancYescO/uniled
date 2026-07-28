@@ -263,7 +263,7 @@ class UniledNetDevice(UniledDevice):
 
     async def _execute_commands(self, commands: list[bytes]) -> bool:
         """Execute command(s)."""
-        self._connect_if_disconnected()
+        await self._connect_if_disconnected()
         last_index = len(commands) - 1
         for i, command in enumerate(commands):
             if self.available and command:
@@ -351,7 +351,15 @@ class UniledNetDevice(UniledDevice):
                 if timeout_left <= 0:
                     break
                 try:
-                    read_ready, _, _ = select.select([self._socket], [], [], timeout_left)
+                    # select.select is blocking even though this method is async.
+                    # Keep it off Home Assistant's event-loop thread.
+                    read_ready, _, _ = await asyncio.to_thread(
+                        select.select,
+                        [self._socket],
+                        [],
+                        [],
+                        timeout_left,
+                    )
                     if not read_ready:
                         _LOGGER.debug("%s: timed out reading %d bytes", self.name, expected)
                         break
@@ -380,10 +388,11 @@ class UniledNetDevice(UniledDevice):
             self._socket.settimeout(self._timeout)
         return rx
 
-    def _connect_if_disconnected(self) -> None:
+    async def _connect_if_disconnected(self) -> None:
         """Connect only if not already connected."""
         if self._socket is None:
-            self._connect()
+            # socket.connect uses the configured five-second timeout.
+            await asyncio.to_thread(self._connect)
 
     @_socket_retry(attempts=0)
     def _connect(self) -> None:
