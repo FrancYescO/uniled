@@ -469,9 +469,8 @@ class SPTechModel(SPTechFX):
                             device.master.set(ATTR_HA_WHITE, level_white)
                             white_mode = COLOR_MODE_WHITE
                             supported_color_modes.add(white_mode)
-                        else:
+                        elif not cfg.hue:
                             # Fix Issues #73 and #77
-                            # supported_color_modes = set(white_mode)
                             supported_color_modes.add(white_mode)
 
                         device.master.set(
