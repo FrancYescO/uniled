@@ -19,6 +19,12 @@
     },
     {
       "local_name": "SP1*"
+    },
+    {
+      "local_name": "SP5*"
+    },
+    {
+      "local_name": "SP6*"
     }
   ],
   "codeowners": [
