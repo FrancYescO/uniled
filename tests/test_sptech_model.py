@@ -16,6 +16,7 @@ from custom_components.uniled.lib.const import (  # noqa: E402
     COLOR_MODE_BRIGHTNESS,
     COLOR_MODE_RGB,
 )
+from custom_components.uniled.lib.net.sp53x_54xe import SP5XXE  # noqa: E402
 from custom_components.uniled.lib.sptech_conf import CFG_82, CFG_86  # noqa: E402
 from custom_components.uniled.lib.sptech_model import SPTechModel  # noqa: E402
 
@@ -82,3 +83,26 @@ def test_spi_single_color_static_mode_advertises_brightness() -> None:
 
     assert channel.get(ATTR_HA_SUPPORTED_COLOR_MODES) == {COLOR_MODE_BRIGHTNESS}
     assert channel.get(ATTR_HA_COLOR_MODE) == COLOR_MODE_BRIGHTNESS
+
+
+def test_sp54ae_network_model_signature() -> None:
+    """SP54AE is identified by its network model code and RGBCCT configs."""
+    proxy = SP5XXE()
+
+    model = proxy.match_model_code(0x65)
+    named_model = proxy.match_model_name("SP54AE")
+
+    assert model is not None
+    assert named_model is not None
+    assert model.model_name == "SP54AE"
+    assert named_model.model_code == 0x65
+    assert set(model.configs) == {0x0B, 0x0E}
+    assert all(
+        config.spi and config.hue and config.cct
+        for config in model.configs.values()
+    )
+    assert all(
+        len(config.effects[model.MODE_SOUND_COLOR]) == 5
+        and model.MODE_CUSTOM_GRADIENT in config.effects
+        for config in model.configs.values()
+    )

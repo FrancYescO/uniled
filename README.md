@@ -33,7 +33,7 @@
   - **SP537E** / **SP637E** / **SP647E** / **SP657E** - SPI CCT Controllers
   - **SP538E** / **SP548E** / **SP638E** / **SP648E** / **SP658E** - SPI RGB Controllers
   - **SP539E** / **SP549E** / **SP639E** / **SP649E** / **SP659E** - SPI RGBW Controllers
-  - **SP63AE** / **SP64AE** / **SP65AE** - SPI RGBCCT Controllers
+  - **SP54AE** / **SP63AE** / **SP64AE** / **SP65AE** - SPI RGBCCT Controllers
   - **SP63BE** / **SP64BE** - SPI RGB+1CH PWM Controllers
   - **SP63CE** / **SP64CE** - SPI RGB+2CH PWM Controllers
 

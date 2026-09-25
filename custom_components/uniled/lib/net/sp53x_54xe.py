@@ -10,10 +10,8 @@ from ..discovery import UniledProxy
 from ..effects import UNILEDEffects
 from ..sptech_conf import (
     CFG_8A as SP5XXE_8A,
-    CFG_8B as SP5XXE_8B,
     CFG_8C as SP5XXE_8C,
     CFG_8D as SP5XXE_8D,
-    CFG_8E as SP5XXE_8E,
     CFG_81 as SP5XXE_81,
     CFG_82 as SP5XXE_82,
     CFG_83 as SP5XXE_83,
@@ -118,6 +116,20 @@ class SP5XXE_88(SPTechConf):
         }
 
 
+class SP5XXE_8B(SP5XXE_88):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "SPI - RGBCCT (1)"
+        self.cct = True
+        self.order = SPTechChips.CHIP_ORDER_RGBCW
+
+
+class SP5XXE_8E(SP5XXE_8B):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "SPI - RGBCCT (2)"
+
+
 ##
 ## BanlanX - SP5xxE Device Proxy
 ##
@@ -167,11 +179,19 @@ class SP5XXE(UniledProxy):
         code = {0x57: "SP539E", 0x64: "SP549E"}
         conf = {0x08: SP5XXE_88()}
 
+    class SP54AE(SPTechSig):
+        """SP54AE."""
+
+        info = "SPI RGBCCT (Music) Controller"
+        code = {0x65: "SP54AE"}
+        conf = {0x0B: SP5XXE_8B(), 0x0E: SP5XXE_8E()}
+
     MODEL_SIGNATURE_LIST: Final = [
         SP530E,
         SP537E,
         SP538E_SP548E,
         SP539E_SP549E,
+        SP54AE,
     ]
 
     def _make_model(self, model: SPTechSig, code: int) -> SPTechNetModel:
