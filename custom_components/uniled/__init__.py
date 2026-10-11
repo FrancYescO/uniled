@@ -28,6 +28,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import CoreState, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers import (
     device_registry as dr,
     entity_registry as er,
@@ -87,7 +88,7 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
-# CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

@@ -85,6 +85,22 @@ def test_spi_single_color_static_mode_advertises_brightness() -> None:
     assert channel.get(ATTR_HA_COLOR_MODE) == COLOR_MODE_BRIGHTNESS
 
 
+def test_sp541e_network_model_signature() -> None:
+    """SP541E resolves to its single-color PWM configuration."""
+    proxy = SP5XXE()
+
+    model = proxy.match_model_code(0x5C)
+    named_model = proxy.match_model_name("SP541E")
+
+    assert model is not None
+    assert named_model is not None
+    assert model.model_name == "SP541E"
+    assert named_model.model_code == 0x5C
+    assert set(model.configs) == {0x01}
+    assert model.match_light_type_config(0x01) is model.configs[0x01]
+    assert model.configs[0x01].name == "1 CH PWM - Single Color"
+
+
 def test_sp54ae_network_model_signature() -> None:
     """SP54AE is identified by its network model code and RGBCCT configs."""
     proxy = SP5XXE()
