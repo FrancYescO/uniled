@@ -97,6 +97,12 @@ output to assist with further invetigation.
 
 ## 🪲 Debugging
 
+SPTech controllers (including SP637E) retain their light controls when firmware
+reports an unrecognized effect ID. The effect is shown as `Unknown`; static
+brightness and color temperature remain available without changing effects in
+the BanlanX app. Include debug logs when reporting an unknown effect so its
+capabilities can be identified.
+
 To debug the integration, add the following to your `configuration.yaml`
 
 ```yaml

@@ -359,153 +359,162 @@ class SPTechModel(SPTechFX):
             }
         )
 
+        # Entity discovery and basic state must not depend on recognizing the
+        # current effect ID. Firmware may report IDs absent from our effect table.
+        device.master.features.extend(
+            [LightStripFeature(extra=UNILED_CONTROL_ATTRIBUTES), LightModeFeature()]
+        )
+
         if (fxlist := cfg.dictof_mode_effects(mode)) is not None:
-            if fxattr := None if effect not in fxlist else fxlist[effect]:
-                # _LOGGER.warn("%s: FXATTR: (%s) %s", device.name, cfg.name, fxattr)
-                device.master.features.extend(
-                    [
-                        LightStripFeature(extra=UNILED_CONTROL_ATTRIBUTES),
-                        LightModeFeature(),
-                        EffectTypeFeature(),
-                        EffectLoopFeature(),
-                        EffectPlayFeature(),
-                        EffectSpeedFeature(self.MAX_EFFECT_SPEED),
-                        EffectLengthFeature(self.MAX_EFFECT_LENGTH),
-                        EffectDirectionFeature(),
-                        AudioInputFeature(),
-                        AudioSensitivityFeature(self.MAX_SENSITIVITY),
-                    ]
-                )
-
-                device.master.set(ATTR_HA_EFFECT, str(fxattr.name))
-
-                device.master.set(
-                    ATTR_UL_EFFECT_TYPE,
-                    str(self.match_channel_effect_type(device.master, effect, mode)),
-                )
-                device.master.set(
-                    ATTR_UL_EFFECT_LOOP,
-                    bool(loop) if self.is_loop_mode(mode) else None,
-                )
-                device.master.set(
-                    ATTR_UL_EFFECT_PLAY, bool(play) if fxattr.pausable else None
-                )
-                device.master.set(
-                    ATTR_UL_EFFECT_SPEED, speed if fxattr.speedable else None
-                )
-                device.master.set(
-                    ATTR_UL_EFFECT_LENGTH, length if fxattr.sizeable else None
-                )
-                device.master.set(
-                    ATTR_UL_EFFECT_DIRECTION,
-                    bool(direction) if fxattr.directional else None,
-                )
-
-                audio_input = (
-                    self.str_if_key_in(audio, self.DICTOF_AUDIO_INPUTS)
-                    if power and self.is_sound_mode(mode)
-                    else None
-                )
-                device.master.set(ATTR_UL_AUDIO_INPUT, audio_input)
-                device.master.set(
-                    ATTR_UL_SENSITIVITY, gain if audio_input is not None else None
-                )
-
-                if self.is_sound_mode(mode):
-                    # In sound modes, irrespective of coexistence setting
-                    # the color and white(s) are separatly controlled when
-                    # supported by the effect, but brightness changes are
-                    # not supported.
-                    #
-                    if self.is_white_mode(mode) and fxattr.colorable and cfg.cct:
-                        device.master.set(ATTR_HA_BRIGHTNESS, 255)
-                        device.master.set(ATTR_HA_WHITE, 255)
-                        device.master.set(
-                            ATTR_UL_CCT_COLOR,
-                            (effect_white[0], effect_white[1], 255, None),
-                        )
-                    elif self.is_color_mode(mode) and fxattr.colorable and cfg.hue:
-                        device.master.set(ATTR_HA_BRIGHTNESS, 255)
-                        device.master.set(ATTR_HA_RGB_COLOR, effect_color)
-                elif self.is_dynamic_mode(mode):
-                    # In dynamic modes, irrespective of coexistence setting
-                    # the color and white(s) are separatly controlled when
-                    # supported by the effect, brightness changes are also
-                    # supported.
-                    #
-                    if self.is_white_mode(mode) and fxattr.colorable and cfg.cct:
-                        device.master.set(
-                            ATTR_UL_CCT_COLOR,
-                            (effect_white[0], effect_white[1], level_white, None),
-                        )
-                    elif self.is_color_mode(mode) and fxattr.colorable and cfg.hue:
-                        device.master.set(ATTR_HA_RGB_COLOR, effect_color)
-                    device.master.set(
-                        ATTR_HA_BRIGHTNESS,
-                        level_white if self.is_white_mode(mode) else level_color,
-                    )
-                elif self.is_static_mode(mode):
-                    coexistence = device.master.get(ATTR_UL_COEXISTENCE, False)
-
-                    if cfg.hue and cfg.cct and coexistence:
-                        device.master.set(
-                            ATTR_HA_RGBWW_COLOR,
-                            static_color + static_white,
-                            # (data[37], data[38], data[39], data[40], data[41]),
-                        )
-                    elif cfg.hue and cfg.white and coexistence:
-                        device.master.set(
-                            ATTR_HA_RGBW_COLOR,
-                            static_color + (level_white),
-                            # (data[37], data[38], data[39], level_white),
-                        )
-                    elif cfg.hue or cfg.cct or cfg.white:
-                        white_mode = COLOR_MODE_BRIGHTNESS
-                        supported_color_modes = set()
-
-                        if cfg.hue:
-                            device.master.set(ATTR_HA_RGB_COLOR, static_color)
-                            supported_color_modes.add(COLOR_MODE_RGB)
-                        if cfg.cct:
-                            device.master.set(
-                                ATTR_UL_CCT_COLOR,
-                                static_white + (level_white, None),
-                                # (data[40], data[41], white_level, None),
-                            )
-                            white_mode = COLOR_MODE_COLOR_TEMP
-                            supported_color_modes.add(white_mode)
-                        elif cfg.white and cfg.hue:
-                            device.master.set(ATTR_HA_WHITE, level_white)
-                            white_mode = COLOR_MODE_WHITE
-                            supported_color_modes.add(white_mode)
-                        elif not cfg.hue:
-                            # Fix Issues #73 and #77
-                            supported_color_modes.add(white_mode)
-
-                        device.master.set(
-                            ATTR_HA_SUPPORTED_COLOR_MODES, supported_color_modes
-                        )
-                        active_color_mode = (
-                            COLOR_MODE_RGB if self.is_color_mode(mode) else white_mode
-                        )
-                        if active_color_mode not in supported_color_modes:
-                            active_color_mode = (
-                                next(iter(supported_color_modes))
-                                if supported_color_modes
-                                else ColorMode.ONOFF
-                            )
-                        device.master.set(
-                            ATTR_HA_COLOR_MODE,
-                            active_color_mode,
-                        )
-                    device.master.set(
-                        ATTR_HA_BRIGHTNESS,
-                        level_white if self.is_white_mode(mode) else level_color,
-                    )
-                elif mode in self.LISTOF_CUSTOM_MODES:
-                    device.master.set(ATTR_HA_BRIGHTNESS, level_color)
-            else:
+            fxattr = fxlist.get(effect)
+            if fxattr is None:
                 _LOGGER.debug("%s: Unknown effect: %d", device.name, effect)
+            device.master.features.extend(
+                [
+                    EffectTypeFeature(),
+                    EffectLoopFeature(),
+                    EffectPlayFeature(),
+                    EffectSpeedFeature(self.MAX_EFFECT_SPEED),
+                    EffectLengthFeature(self.MAX_EFFECT_LENGTH),
+                    EffectDirectionFeature(),
+                    AudioInputFeature(),
+                    AudioSensitivityFeature(self.MAX_SENSITIVITY),
+                ]
+            )
+
+            device.master.set(
+                ATTR_HA_EFFECT, str(fxattr.name) if fxattr else UNILED_UNKNOWN
+            )
+
+            device.master.set(
+                ATTR_UL_EFFECT_TYPE,
+                str(self.match_channel_effect_type(device.master, effect, mode)),
+            )
+            device.master.set(
+                ATTR_UL_EFFECT_LOOP,
+                bool(loop) if self.is_loop_mode(mode) else None,
+            )
+            device.master.set(
+                ATTR_UL_EFFECT_PLAY, bool(play) if fxattr and fxattr.pausable else None
+            )
+            device.master.set(
+                ATTR_UL_EFFECT_SPEED, speed if fxattr and fxattr.speedable else None
+            )
+            device.master.set(
+                ATTR_UL_EFFECT_LENGTH, length if fxattr and fxattr.sizeable else None
+            )
+            device.master.set(
+                ATTR_UL_EFFECT_DIRECTION,
+                bool(direction) if fxattr and fxattr.directional else None,
+            )
+
+            audio_input = (
+                self.str_if_key_in(audio, self.DICTOF_AUDIO_INPUTS)
+                if power and self.is_sound_mode(mode)
+                else None
+            )
+            device.master.set(ATTR_UL_AUDIO_INPUT, audio_input)
+            device.master.set(
+                ATTR_UL_SENSITIVITY, gain if audio_input is not None else None
+            )
+
+            if self.is_sound_mode(mode):
+                # In sound modes, irrespective of coexistence setting
+                # the color and white(s) are separatly controlled when
+                # supported by the effect, but brightness changes are
+                # not supported.
+                #
+                if self.is_white_mode(mode) and fxattr and fxattr.colorable and cfg.cct:
+                    device.master.set(ATTR_HA_BRIGHTNESS, 255)
+                    device.master.set(ATTR_HA_WHITE, 255)
+                    device.master.set(
+                        ATTR_UL_CCT_COLOR,
+                        (effect_white[0], effect_white[1], 255, None),
+                    )
+                elif (
+                    self.is_color_mode(mode) and fxattr and fxattr.colorable and cfg.hue
+                ):
+                    device.master.set(ATTR_HA_BRIGHTNESS, 255)
+                    device.master.set(ATTR_HA_RGB_COLOR, effect_color)
+            elif self.is_dynamic_mode(mode):
+                # In dynamic modes, irrespective of coexistence setting
+                # the color and white(s) are separatly controlled when
+                # supported by the effect, brightness changes are also
+                # supported.
+                #
+                if self.is_white_mode(mode) and fxattr and fxattr.colorable and cfg.cct:
+                    device.master.set(
+                        ATTR_UL_CCT_COLOR,
+                        (effect_white[0], effect_white[1], level_white, None),
+                    )
+                elif (
+                    self.is_color_mode(mode) and fxattr and fxattr.colorable and cfg.hue
+                ):
+                    device.master.set(ATTR_HA_RGB_COLOR, effect_color)
+                device.master.set(
+                    ATTR_HA_BRIGHTNESS,
+                    level_white if self.is_white_mode(mode) else level_color,
+                )
+            elif self.is_static_mode(mode):
+                coexistence = device.master.get(ATTR_UL_COEXISTENCE, False)
+
+                if cfg.hue and cfg.cct and coexistence:
+                    device.master.set(
+                        ATTR_HA_RGBWW_COLOR,
+                        static_color + static_white,
+                        # (data[37], data[38], data[39], data[40], data[41]),
+                    )
+                elif cfg.hue and cfg.white and coexistence:
+                    device.master.set(
+                        ATTR_HA_RGBW_COLOR,
+                        static_color + (level_white),
+                        # (data[37], data[38], data[39], level_white),
+                    )
+                elif cfg.hue or cfg.cct or cfg.white:
+                    white_mode = COLOR_MODE_BRIGHTNESS
+                    supported_color_modes = set()
+
+                    if cfg.hue:
+                        device.master.set(ATTR_HA_RGB_COLOR, static_color)
+                        supported_color_modes.add(COLOR_MODE_RGB)
+                    if cfg.cct:
+                        device.master.set(
+                            ATTR_UL_CCT_COLOR,
+                            static_white + (level_white, None),
+                            # (data[40], data[41], white_level, None),
+                        )
+                        white_mode = COLOR_MODE_COLOR_TEMP
+                        supported_color_modes.add(white_mode)
+                    elif cfg.white and cfg.hue:
+                        device.master.set(ATTR_HA_WHITE, level_white)
+                        white_mode = COLOR_MODE_WHITE
+                        supported_color_modes.add(white_mode)
+                    elif not cfg.hue:
+                        # Fix Issues #73 and #77
+                        supported_color_modes.add(white_mode)
+
+                    device.master.set(
+                        ATTR_HA_SUPPORTED_COLOR_MODES, supported_color_modes
+                    )
+                    active_color_mode = (
+                        COLOR_MODE_RGB if self.is_color_mode(mode) else white_mode
+                    )
+                    if active_color_mode not in supported_color_modes:
+                        active_color_mode = (
+                            next(iter(supported_color_modes))
+                            if supported_color_modes
+                            else ColorMode.ONOFF
+                        )
+                    device.master.set(
+                        ATTR_HA_COLOR_MODE,
+                        active_color_mode,
+                    )
+                device.master.set(
+                    ATTR_HA_BRIGHTNESS,
+                    level_white if self.is_white_mode(mode) else level_color,
+                )
+            elif mode in self.LISTOF_CUSTOM_MODES:
+                device.master.set(ATTR_HA_BRIGHTNESS, level_color)
         else:
             _LOGGER.debug("%s: Unknown light mode: %d", device.name, mode)
 
