@@ -264,6 +264,10 @@ class UniledBleDevice(UniledDevice):
         """Get the name of the device."""
         if not self._ble_device:
             return self.model_name
+        if getattr(getattr(self, "_model", None), "use_model_name", False):
+            # The advertised name of these devices is unreliable (e.g. "LMB" or
+            # a truncated name), so name them after the model instead.
+            return self.human_readable_name(self.model_name, "", self._ble_device.address)
         return self._ble_device.name or self._ble_device.address
 
     @property
@@ -501,10 +505,12 @@ class UniledBleDevice(UniledDevice):
         for command in commands:
             if self._client.is_connected and command:
                 _LOGGER.debug("%s: => %s (%d)", self.name, command.hex(), len(command))
+                # SP661E only answers queries written without response.
                 reply = await self._client.write_gatt_char(
-                    self._write_char, command, True
-                )  # None)
-                # await self._client.write_gatt_char(self._write_char, command, False) # Do not use!
+                    self._write_char,
+                    command,
+                    getattr(self._model, "write_with_response", True),
+                )
                 if reply is not None:
                     _LOGGER.debug("%s: Command Reply: %s", self.name, repr(reply))
                 if to_send > 1:

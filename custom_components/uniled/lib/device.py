@@ -90,10 +90,11 @@ class UniledDevice:
 
     def __del__(self):
         """Delete the device."""
-        _LOGGER.debug("%s: Delete Device", self.name)
-        if self._channels:
-            self._channels.clear()
+        # __init__ may have failed before these were set
         self._model = None
+        if hasattr(self, "_channels"):
+            self._channels.clear()
+        _LOGGER.debug("%s: Deleted Device", self.name)
 
     def _create_channels(self) -> None:
         """Create device channels."""
