@@ -43,8 +43,7 @@
     "uniled_scanner"
   ],
   "requirements": [
-    "pycryptodome>=3.17",
-    "cryptography"
+    "pycryptodome>=3.17"
   ],
   "version": "3.1.1"
 }
