@@ -69,8 +69,8 @@ class FakeStatusView:
 
 
 class FakeChannel:
-    def __init__(self, mode):
-        self.status = FakeStatusView(light_mode_number=mode)
+    def __init__(self, mode, onoff_effect=0x03):
+        self.status = FakeStatusView(light_mode_number=mode, onoff_effect=onoff_effect)
 
 
 def with_bytes(base: bytes, **offs):
@@ -96,7 +96,17 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(st[ATTR_UL_LIGHT_MODE_NUMBER], 2)
         self.assertEqual(st[ATTR_HA_EFFECT], "Solid Color")
         self.assertEqual(st[ATTR_UL_EFFECT_TYPE], UNILED_EFFECT_TYPE_STATIC)
-        self.assertEqual(len(dev.master.features), 3)
+        self.assertEqual(st[ATTR_UL_ON_POWER], "Light On")
+        self.assertEqual(st[ATTR_UL_ONOFF_SPEED], "Fast")
+        self.assertEqual(len(dev.master.features), 5)
+
+    def test_parse_on_power_and_onoff_speed(self):
+        dev = FakeDevice()
+        pkt = with_bytes(STATUS_SP662E, o22=2, o24=1)
+        self.assertTrue(SP662E.parse_notifications(dev, 0, bytearray(pkt)))
+        st = dev.master.status
+        self.assertEqual(st[ATTR_UL_ON_POWER], "Last state")
+        self.assertEqual(st[ATTR_UL_ONOFF_SPEED], "Slow")
 
     def test_parse_cct_solid(self):
         dev = FakeDevice()
@@ -223,6 +233,47 @@ class CommandTests(unittest.TestCase):
         )
         for invalid in (-1, 11, 128, 256, 266):
             self.assertIsNone(SP661E.build_effect_speed_command(None, None, invalid))
+
+    def test_on_power(self):
+        self.assertEqual(
+            SP662E.fetch_on_power_list(None, None),
+            ["Light Off", "Light On", "Last state"],
+        )
+        self.assertEqual(
+            SP662E.build_on_power_command(None, None, "Light Off").hex(" "),
+            "53 0b 00 01 00 01 00",
+        )
+        self.assertEqual(
+            SP662E.build_on_power_command(None, None, "Light On").hex(" "),
+            "53 0b 00 01 00 01 01",
+        )
+        self.assertEqual(
+            SP662E.build_on_power_command(None, None, "Last state").hex(" "),
+            "53 0b 00 01 00 01 02",
+        )
+        self.assertIsNone(SP662E.build_on_power_command(None, None, "Invalid"))
+        self.assertIsNone(SP662E.build_on_power_command(None, None, 99))
+
+    def test_onoff_speed(self):
+        self.assertEqual(
+            SP662E.fetch_onoff_speed_list(None, None),
+            ["Slow", "Medium", "Fast"],
+        )
+        self.assertEqual(
+            SP662E.build_onoff_speed_command(None, FakeChannel(2), "Slow").hex(" "),
+            "53 08 00 01 00 05 00 03 01 00 01",
+        )
+        self.assertEqual(
+            SP662E.build_onoff_speed_command(None, FakeChannel(2), "Medium").hex(" "),
+            "53 08 00 01 00 05 00 03 02 00 01",
+        )
+        self.assertEqual(
+            SP662E.build_onoff_speed_command(None, FakeChannel(2), "Fast").hex(" "),
+            "53 08 00 01 00 05 00 03 03 00 01",
+        )
+        self.assertIsNone(
+            SP662E.build_onoff_speed_command(None, FakeChannel(2), "Invalid")
+        )
 
 
 class MatchTests(unittest.TestCase):

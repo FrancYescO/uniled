@@ -14,6 +14,8 @@ from ..features import (
     LightStripFeature,
     EffectTypeFeature,
     EffectSpeedFeature,
+    OnOffSpeedFeature,
+    OnPowerFeature,
 )
 from ..effects import (
     UNILED_EFFECT_TYPE_DYNAMIC,
@@ -38,6 +40,8 @@ BANLANX661_MSG_STATUS: Final = 0x02
 
 # Command codes
 BANLANX661_CMD_QUERY: Final = 0x02
+BANLANX661_CMD_ONOFF_OPTIONS: Final = 0x08
+BANLANX661_CMD_ON_POWER: Final = 0x0B
 BANLANX661_CMD_MODE: Final = 0x53
 BANLANX661_CMD_POWER: Final = 0x50
 BANLANX661_CMD_LEVEL: Final = 0x51
@@ -46,6 +50,9 @@ BANLANX661_CMD_CCT_FX: Final = 0x60
 BANLANX661_CMD_CCT_STATIC: Final = 0x61
 
 # Offsets in the status notification (header included)
+BANLANX661_OFS_ON_POWER: Final = 22
+BANLANX661_OFS_ONOFF_EFFECT: Final = 23
+BANLANX661_OFS_ONOFF_SPEED: Final = 24
 BANLANX661_OFS_LIGHT_TYPE: Final = 42
 BANLANX661_OFS_POWER: Final = 44
 BANLANX661_OFS_MODE: Final = 47
@@ -73,6 +80,18 @@ BANLANX661_EFFECTS: Final = {
     0x41: "Triangle",
     0x42: "Strobe",
     0x43: "Heart Beat",
+}
+
+BANLANX661_ON_POWER_STATES: Final = {
+    0x00: "Light Off",
+    0x01: "Light On",
+    0x02: "Last state",
+}
+
+BANLANX661_ONOFF_SPEEDS: Final = {
+    0x01: "Slow",
+    0x02: "Medium",
+    0x03: "Fast",
 }
 
 
@@ -134,8 +153,17 @@ class BanlanX661(UniledBleModel):
                 LightStripFeature(extra=UNILED_CONTROL_ATTRIBUTES),
                 EffectTypeFeature(),
                 EffectSpeedFeature(BANLANX661_MAX_EFFECT_SPEED),
+                OnOffSpeedFeature(),
+                OnPowerFeature(),
             ]
 
+        on_power = self.str_if_key_in(
+            data[BANLANX661_OFS_ON_POWER], BANLANX661_ON_POWER_STATES, UNILED_UNKNOWN
+        )
+        onoff_effect = data[BANLANX661_OFS_ONOFF_EFFECT]
+        onoff_speed = self.str_if_key_in(
+            data[BANLANX661_OFS_ONOFF_SPEED], BANLANX661_ONOFF_SPEEDS, UNILED_UNKNOWN
+        )
         light_type = data[BANLANX661_OFS_LIGHT_TYPE]
         is_cct = light_type == BANLANX661_LIGHT_TYPE_CCT
         mode = data[BANLANX661_OFS_MODE]
@@ -152,6 +180,9 @@ class BanlanX661(UniledBleModel):
         status: dict[str, object] = {
             ATTR_UL_DEVICE_FORCE_REFRESH: True,
             ATTR_UL_POWER: data[BANLANX661_OFS_POWER] == 1,
+            ATTR_UL_ON_POWER: on_power,
+            ATTR_UL_ONOFF_EFFECT: onoff_effect,
+            ATTR_UL_ONOFF_SPEED: onoff_speed,
             ATTR_UL_LIGHT_TYPE_NUMBER: light_type,
             ATTR_HA_SUPPORTED_COLOR_MODES: {color_mode},
             ATTR_HA_COLOR_MODE: color_mode,
@@ -245,6 +276,49 @@ class BanlanX661(UniledBleModel):
         if not 0 <= speed <= BANLANX661_MAX_EFFECT_SPEED:
             return None
         return _encode(BANLANX661_CMD_SPEED, [0x01, speed])
+
+    def build_on_power_command(
+        self, device: UniledBleDevice, channel: UniledChannel, value: str | int
+    ) -> bytearray | None:
+        """Build power-on restore state command."""
+        if isinstance(value, str):
+            mode = self.int_if_str_in(value, BANLANX661_ON_POWER_STATES, None)
+        else:
+            mode = int(value)
+        if mode is None or mode not in BANLANX661_ON_POWER_STATES:
+            return None
+        return _encode(BANLANX661_CMD_ON_POWER, [mode])
+
+    def fetch_on_power_list(
+        self, device: UniledBleDevice, channel: UniledChannel
+    ) -> list[str]:
+        """Return list of power-on restore states."""
+        return list(BANLANX661_ON_POWER_STATES.values())
+
+    def build_onoff_speed_command(
+        self, device: UniledBleDevice, channel: UniledChannel, value: str | int
+    ) -> bytearray | None:
+        """Build on/off transition speed command."""
+        if isinstance(value, str):
+            speed = self.int_if_str_in(value, BANLANX661_ONOFF_SPEEDS, None)
+        else:
+            speed = int(value)
+        if speed is None or speed not in BANLANX661_ONOFF_SPEEDS:
+            return None
+        effect = (
+            channel.status.onoff_effect
+            if channel is not None and channel.status.onoff_effect is not None
+            else 0x03
+        )
+        return _encode(
+            BANLANX661_CMD_ONOFF_OPTIONS, [0x00, int(effect) & 0xFF, speed, 0x00, 0x01]
+        )
+
+    def fetch_onoff_speed_list(
+        self, device: UniledBleDevice, channel: UniledChannel
+    ) -> list[str]:
+        """Return list of on/off transition speeds."""
+        return list(BANLANX661_ONOFF_SPEEDS.values())
 
 
 ##

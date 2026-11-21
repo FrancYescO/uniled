@@ -55,6 +55,9 @@ carry `[cold, warm]` directly with no channel prefix.
 | Action | Frame | Notes |
 |---|---|---|
 | Query state | `53 02 00 01 00 01 01` | reply is `53 02 ...`, 98-108 bytes |
+| On/off speed | `53 08 00 01 00 05 00 EE SS 00 01` | `EE` = on/off effect (`03` gradient), `SS` = `01` Slow / `02` Medium / `03` Fast (verified from BanlanX HCI capture; readback at `[23..24]`) |
+| Power-on state | `53 0b 00 01 00 01 MM` | `MM` = `00` Light Off / `01` Light On / `02` Last state (verified from BanlanX HCI capture; readback at `[22]`, no leading `01` channel byte) |
+| Power cycle reset | `53 17 00 01 00 03 DD 07 05` | `DD` = `01` Off (disabled) / `00` On (enabled); verified from BanlanX HCI capture (status readback offset not yet isolated) |
 | Power on | `53 50 00 01 00 02 01 01` | verified on SP661E and SP662E |
 | Power off | `53 50 00 01 00 02 01 00` | verified on SP661E and SP662E |
 | Brightness | `53 51 00 01 00 03 01 80 LL` | `LL` 0-255, linear (remote steps: 10%=`1a`, 20%=`33`, 30%=`4d`, 50%=`80`, 80%=`cc`, 100%=`ff`). Verified on SP661E and SP662E (note: BanlanX app sends `01` instead of `80` in the selector byte, i.e. `01 01 LL`; both update `[51]` independently of CCT `[55..56]`) |
@@ -90,6 +93,9 @@ and Chunk 13 (`0d 00 03` at `[98]`).
 | `[5]` | payload length (`0x62` normal; changes if the device changes internal mode) |
 | `[13..19]` | firmware string (`V1.0.02`) |
 | `[20]` | hardware/model byte (`0x63` on SP661E, `0x72` on both SP662E units) |
+| `[22]` | power-on restore state (`00` Light Off, `01` Light On, `02` Last state) — **verified** |
+| `[23]` | on/off transition effect (`03` gradient) |
+| `[24]` | on/off transition speed (`01` Slow, `02` Medium, `03` Fast) — **verified** |
 | `[30..35]` | paired RF remote ID (`00 00 00 00 00 00` when unpaired) |
 | `[42]` | light type (`01` PWM single-colour SP661E, `03` PWM CCT SP662E) — **verified** |
 | `[44]` | power (`01` on, `00` off) — **verified** |
@@ -110,9 +116,10 @@ Found while probing with a blind sweep. They modify device configuration, so avo
 
 - `0x5E` rewrites about 40 state bytes at once (looks like a reset). After it the RF remote lost
   its pairing and had to be re-paired.
-- `0x08`, `0x0A`, `0x0B`, `0x0D`, `0x17`, `0x30`, `0x57`, `0x58`, `0x59`, `0x5A` each change an
-  unidentified setting or flag. `0x6A`/`0x6B` (light type, channel order in related models) were
-  deliberately never sent.
+- `0x0A`, `0x0D`, `0x30`, `0x57`, `0x58`, `0x59`, `0x5A` each change an
+  unidentified setting or flag (`0x08` = on/off speed, `0x0B` = power-on state, `0x17` = power
+  cycle reset; documented in section 3). `0x6A`/`0x6B` (light type, channel order in related
+  models) were deliberately never sent.
 - Sending an arbitrary mode number to `0x53` (for example `80`) leaves the device in an undefined mode.
 
 The RF remote can be re-paired by powering the controller on and long-pressing ON on the remote
