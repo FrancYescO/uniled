@@ -54,6 +54,8 @@ All control commands take a payload that starts with `01` (channel 1).
 | Secondary level | `53 51 00 01 00 03 01 00 LL` | sets state byte `[50]`; no visible effect identified |
 | Mode / effect | `53 53 00 01 00 03 01 MM EE` | see section 4 |
 | Effect speed | `53 54 00 01 00 02 01 SS` | `SS` 00-0a accepted; `80` ignored; higher is faster |
+| Static CCT (SP662E) | `53 61 00 01 00 02 CC WW` | `CC` (cold) + `WW` (warm) = 255; no leading `01` channel byte (verified from BanlanX HCI capture) |
+| Effect CCT (SP662E) | `53 60 00 01 00 02 CC WW` | dynamic-mode CCT (hypothesis matching SPTech `EFFECT_CCT`) |
 
 Pitfall: a two-byte brightness payload (`01 LL`) sets the level to 0 (strip drops to minimum). The
 level is always the **last** byte, and the byte before it selects the field (`80` = brightness).
@@ -76,12 +78,15 @@ Effects 01-03 were identified visually in the order the RF remote cycles them.
 |---|---|
 | `[5]` | payload length (`0x62` normal; changes if the device changes internal mode) |
 | `[13..19]` | firmware string (`V1.0.02`) |
+| `[42]` | light type (`01` PWM single-colour SP661E, `03` PWM CCT SP662E) |
 | `[44]` | power (`01` on, `00` off) |
 | `[47]` | mode (`02` solid, `04` dynamic, `06` music) |
 | `[48]` | effect number |
 | `[50]` | secondary level |
 | `[51]` | brightness 0-255 (in animated modes this is the *current output* and oscillates, so do not treat it as the setting) |
+| `[55..56]` | static CCT `(cold, warm)` summing to 255 on SP662E (`ff 00` on SP661E) |
 | `[57]` | effect speed |
+| `[65..66]` | effect CCT `(cold, warm)` summing to 255 on SP662E (`ff 00` on SP661E) |
 
 Other bytes were not decoded. Offsets differ from UniLED's SP63xE parser (e.g. power is `[44]`, not
 `[29]`).

@@ -16,7 +16,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 from custom_components.uniled.lib.const import *  # noqa
-from custom_components.uniled.lib.ble.banlanx_661 import SP661E
+from custom_components.uniled.lib.ble.banlanx_661 import SP661E, SP662E
 from custom_components.uniled.lib.ble.device import (
     UniledBleDevice,
     ParseNotificationError,
@@ -29,6 +29,14 @@ STATUS = bytes.fromhex(
     "53 02 00 01 00 62 01 0a 00 1c 01 00 06 56 31 2e 30 2e 30 32 63 09 01 03 03 00 00 07 80 00 20 01"
     " 60 10 07 a1 00 00 03 00 2a 01 01 00 01 00 78 02 01 00 ff ff ff 00 00 ff 00 03 00 00 10 00 ff 00"
     " 00 ff 00 01 03 01 ff 00 00 01 00 ff 00 01 00 00 ff 01 00 0c 00 0c 01 0a 00 00 00 00 00 00 00 00"
+    " ff 00 0d 00 03 01 00 00"
+)
+
+# Real status notification from an SP662E CCT controller (solid mode, 100%, mid-warmth 7f/80)
+STATUS_SP662E = bytes.fromhex(
+    "53 02 00 01 00 62 01 0a 00 1c 01 00 06 56 31 2e 30 2e 30 32 72 09 01 03 03 00 00 07 80 00 00 00"
+    " 00 00 00 00 00 00 03 00 2a 01 03 00 01 00 78 02 01 00 ff ff ff 00 00 7f 80 0a 00 00 10 00 ff 00"
+    " 00 7f 80 01 03 01 ff 00 00 01 00 ff 00 01 00 00 ff 01 00 0c 00 0c 01 0a 00 00 00 00 00 00 00 00"
     " ff 00 0d 00 03 01 00 00"
 )
 
@@ -81,11 +89,34 @@ class ParseTests(unittest.TestCase):
         self.assertTrue(SP661E.parse_notifications(dev, 0, bytearray(STATUS)))
         st = dev.master.status
         self.assertTrue(st[ATTR_UL_POWER])
+        self.assertEqual(st[ATTR_HA_COLOR_MODE], COLOR_MODE_BRIGHTNESS)
+        self.assertEqual(st[ATTR_HA_SUPPORTED_COLOR_MODES], {COLOR_MODE_BRIGHTNESS})
+        self.assertNotIn(ATTR_UL_CCT_COLOR, st)
         self.assertEqual(st[ATTR_HA_BRIGHTNESS], 0xFF)
         self.assertEqual(st[ATTR_UL_LIGHT_MODE_NUMBER], 2)
         self.assertEqual(st[ATTR_HA_EFFECT], "Solid Color")
         self.assertEqual(st[ATTR_UL_EFFECT_TYPE], UNILED_EFFECT_TYPE_STATIC)
         self.assertEqual(len(dev.master.features), 3)
+
+    def test_parse_cct_solid(self):
+        dev = FakeDevice()
+        self.assertTrue(SP662E.parse_notifications(dev, 0, bytearray(STATUS_SP662E)))
+        st = dev.master.status
+        self.assertTrue(st[ATTR_UL_POWER])
+        self.assertEqual(st[ATTR_HA_COLOR_MODE], COLOR_MODE_COLOR_TEMP)
+        self.assertEqual(st[ATTR_HA_SUPPORTED_COLOR_MODES], {COLOR_MODE_COLOR_TEMP})
+        self.assertEqual(st[ATTR_UL_CCT_COLOR], (0x7F, 0x80, 0xFF, None))
+        self.assertEqual(st[ATTR_HA_BRIGHTNESS], 0xFF)
+        self.assertEqual(st[ATTR_UL_LIGHT_TYPE_NUMBER], 0x03)
+
+    def test_parse_cct_dynamic_uses_fx_cct_bytes(self):
+        dev = FakeDevice()
+        pkt = with_bytes(STATUS_SP662E, o47=4, o48=1, o50=0x60, o65=0x20, o66=0xDF)
+        self.assertTrue(SP662E.parse_notifications(dev, 0, bytearray(pkt)))
+        st = dev.master.status
+        self.assertEqual(st[ATTR_HA_COLOR_MODE], COLOR_MODE_COLOR_TEMP)
+        self.assertEqual(st[ATTR_UL_CCT_COLOR], (0x20, 0xDF, 0x60, None))
+        self.assertEqual(st[ATTR_HA_BRIGHTNESS], 0x60)
 
     def test_parse_power_off_and_brightness(self):
         dev = FakeDevice()
@@ -137,6 +168,41 @@ class CommandTests(unittest.TestCase):
             "53 51 00 01 00 03 01 00 40",
         )
 
+    def test_cct_static_and_fx(self):
+        # Full warm / full cold / mid-warmth in solid mode
+        self.assertEqual(
+            SP662E.build_cct_color_command(
+                None, FakeChannel(2), (0, 255, 255, 2000)
+            ).hex(" "),
+            "53 61 00 01 00 02 00 ff",
+        )
+        self.assertEqual(
+            SP662E.build_cct_color_command(
+                None, FakeChannel(2), (255, 0, 255, 6500)
+            ).hex(" "),
+            "53 61 00 01 00 02 ff 00",
+        )
+        # Dimmed HA rgbww values must normalize so cold + warm == 255
+        self.assertEqual(
+            SP662E.build_cct_color_command(
+                None, FakeChannel(2), (0, 128, 128, 2000)
+            ).hex(" "),
+            "53 61 00 01 00 02 00 ff",
+        )
+        self.assertEqual(
+            SP662E.build_cct_color_command(
+                None, FakeChannel(2), (64, 64, 128, 4250)
+            ).hex(" "),
+            "53 61 00 01 00 02 80 7f",
+        )
+        # Dynamic mode uses EFFECT_CCT (0x60)
+        self.assertEqual(
+            SP662E.build_cct_color_command(
+                None, FakeChannel(4), (65, 190, 255, 3100)
+            ).hex(" "),
+            "53 60 00 01 00 02 41 be",
+        )
+
     def test_effects(self):
         exp = {
             "Solid Color": "53 53 00 01 00 03 01 02 01",
@@ -186,6 +252,15 @@ class MatchTests(unittest.TestCase):
         )
         self.assertIs(m, True)
 
+    def test_named_sp662e_with_shared_signature_matches_sp662e(self):
+        dev = BLEDevice("B4:20:1D:32:1A:98", "SP662E", {})
+        self.assertIs(
+            UniledBleDevice.match_known_device(
+                dev, self.adv(bytes.fromhex("01007a5c1230621a98000000"))
+            ),
+            SP662E,
+        )
+
     def test_named_sp601e_with_shared_signature_keeps_model(self):
         dev = BLEDevice("AA:BB:CC:DD:D3:EA", "SP601E", {})
         self.assertIs(
@@ -204,8 +279,9 @@ class MatchTests(unittest.TestCase):
 
 class RestoreTests(unittest.TestCase):
     def test_model_found_by_stored_name(self):
-        """A saved config entry only stores the model name; it must resolve to SP661E."""
+        """A saved config entry only stores the model name; it must resolve to SP661E/SP662E."""
         self.assertIs(UniledBleDevice.match_model_name("SP661E"), SP661E)
+        self.assertIs(UniledBleDevice.match_model_name("SP662E"), SP662E)
         self.assertIs(UniledBleDevice.match_model_name("SP601E"), SP601E)
 
     def test_unknown_name_is_none(self):
@@ -269,11 +345,13 @@ class DeviceConstructionTests(unittest.IsolatedAsyncioTestCase):
                     return True
                 return False
 
-            with patch(
-                "custom_components.uniled.lib.ble.models.UNILED_BLE_MODELS",
-                [SP661E, SP601E],
-            ), patch.object(dev, "update", side_effect=query), patch.object(
-                dev, "stop", new_callable=AsyncMock
+            with (
+                patch(
+                    "custom_components.uniled.lib.ble.models.UNILED_BLE_MODELS",
+                    [SP661E, SP601E],
+                ),
+                patch.object(dev, "update", side_effect=query),
+                patch.object(dev, "stop", new_callable=AsyncMock),
             ):
                 self.assertIs(await dev.resolve_model(), responding_model)
             self.assertIs(dev.model, responding_model)

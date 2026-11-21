@@ -1,7 +1,8 @@
-"""UniLED BLE Devices - SP LED (BanlanX SP661E, single colour PWM)
+"""UniLED BLE Devices - SP LED (BanlanX SP661E single colour / SP662E CCT PWM)
 
 Protocol notes: see docs/SP661E_PROTOCOL.md. Frames are
-`53 CMD 00 01 00 LEN DATA` on FFE1; control payloads start with channel `01`.
+`53 CMD 00 01 00 LEN DATA` on FFE1; most control payloads start with channel `01`
+(CCT commands `0x60`/`0x61` carry `[cold, warm]` directly).
 """
 
 from __future__ import annotations
@@ -41,15 +42,25 @@ BANLANX661_CMD_MODE: Final = 0x53
 BANLANX661_CMD_POWER: Final = 0x50
 BANLANX661_CMD_LEVEL: Final = 0x51
 BANLANX661_CMD_SPEED: Final = 0x54
+BANLANX661_CMD_CCT_FX: Final = 0x60
+BANLANX661_CMD_CCT_STATIC: Final = 0x61
 
 # Offsets in the status notification (header included)
+BANLANX661_OFS_LIGHT_TYPE: Final = 42
 BANLANX661_OFS_POWER: Final = 44
 BANLANX661_OFS_MODE: Final = 47
 BANLANX661_OFS_EFFECT: Final = 48
 BANLANX661_OFS_LEVEL_FX: Final = 50
 BANLANX661_OFS_LEVEL_SOLID: Final = 51
+BANLANX661_OFS_CCT_COLD_SOLID: Final = 55
+BANLANX661_OFS_CCT_WARM_SOLID: Final = 56
 BANLANX661_OFS_SPEED: Final = 57
+BANLANX661_OFS_CCT_COLD_FX: Final = 65
+BANLANX661_OFS_CCT_WARM_FX: Final = 66
 BANLANX661_MIN_STATUS_LENGTH: Final = 58
+
+BANLANX661_LIGHT_TYPE_MONO: Final = 0x01
+BANLANX661_LIGHT_TYPE_CCT: Final = 0x03
 
 BANLANX661_MODE_SOLID: Final = 0x02
 BANLANX661_MODE_DYNAMIC: Final = 0x04
@@ -125,6 +136,8 @@ class BanlanX661(UniledBleModel):
                 EffectSpeedFeature(BANLANX661_MAX_EFFECT_SPEED),
             ]
 
+        light_type = data[BANLANX661_OFS_LIGHT_TYPE]
+        is_cct = light_type == BANLANX661_LIGHT_TYPE_CCT
         mode = data[BANLANX661_OFS_MODE]
         effect = data[BANLANX661_OFS_EFFECT]
         speed = data[BANLANX661_OFS_SPEED]
@@ -135,25 +148,33 @@ class BanlanX661(UniledBleModel):
             BANLANX661_OFS_LEVEL_SOLID if is_solid else BANLANX661_OFS_LEVEL_FX
         ]
 
-        device.master.status.replace(
-            {
-                ATTR_UL_DEVICE_FORCE_REFRESH: True,
-                ATTR_UL_POWER: data[BANLANX661_OFS_POWER] == 1,
-                ATTR_HA_SUPPORTED_COLOR_MODES: {COLOR_MODE_BRIGHTNESS},
-                ATTR_HA_COLOR_MODE: COLOR_MODE_BRIGHTNESS,
-                ATTR_HA_BRIGHTNESS: level,
-                ATTR_UL_LIGHT_MODE_NUMBER: mode,
-                ATTR_UL_EFFECT_NUMBER: fx_id,
-                ATTR_HA_EFFECT: self.str_if_key_in(
-                    fx_id, BANLANX661_EFFECTS, UNILED_UNKNOWN
-                ),
-                ATTR_UL_EFFECT_TYPE: (
-                    UNILED_EFFECT_TYPE_STATIC
-                    if is_solid
-                    else UNILED_EFFECT_TYPE_DYNAMIC
-                ),
-            }
-        )
+        color_mode = COLOR_MODE_COLOR_TEMP if is_cct else COLOR_MODE_BRIGHTNESS
+        status: dict[str, object] = {
+            ATTR_UL_DEVICE_FORCE_REFRESH: True,
+            ATTR_UL_POWER: data[BANLANX661_OFS_POWER] == 1,
+            ATTR_UL_LIGHT_TYPE_NUMBER: light_type,
+            ATTR_HA_SUPPORTED_COLOR_MODES: {color_mode},
+            ATTR_HA_COLOR_MODE: color_mode,
+            ATTR_HA_BRIGHTNESS: level,
+            ATTR_UL_LIGHT_MODE_NUMBER: mode,
+            ATTR_UL_EFFECT_NUMBER: fx_id,
+            ATTR_HA_EFFECT: self.str_if_key_in(
+                fx_id, BANLANX661_EFFECTS, UNILED_UNKNOWN
+            ),
+            ATTR_UL_EFFECT_TYPE: (
+                UNILED_EFFECT_TYPE_STATIC if is_solid else UNILED_EFFECT_TYPE_DYNAMIC
+            ),
+        }
+        if is_cct:
+            if not is_solid and len(data) > BANLANX661_OFS_CCT_WARM_FX:
+                cold = data[BANLANX661_OFS_CCT_COLD_FX]
+                warm = data[BANLANX661_OFS_CCT_WARM_FX]
+            else:
+                cold = data[BANLANX661_OFS_CCT_COLD_SOLID]
+                warm = data[BANLANX661_OFS_CCT_WARM_SOLID]
+            status[ATTR_UL_CCT_COLOR] = (cold, warm, level, None)
+
+        device.master.status.replace(status)
         if not is_solid:
             device.master.set(ATTR_UL_EFFECT_SPEED, speed)
         return True
@@ -179,6 +200,24 @@ class BanlanX661(UniledBleModel):
         solid = channel.status.light_mode_number in (None, BANLANX661_MODE_SOLID)
         which = 0x80 if solid else 0x00
         return _encode(BANLANX661_CMD_LEVEL, [0x01, which, int(level) & 0xFF])
+
+    def build_cct_color_command(
+        self,
+        device: UniledBleDevice,
+        channel: UniledChannel,
+        cct: tuple[int, int, int, int | None],
+    ) -> bytearray:
+        """The bytes to send for a color temperature change."""
+        cold, warm, _level, _kelvin = cct
+        total = cold + warm
+        if total > 0:
+            cold_norm = round(cold * 255 / total)
+            warm_norm = 255 - cold_norm
+        else:
+            cold_norm, warm_norm = 0x7F, 0x80
+        solid = channel.status.light_mode_number in (None, BANLANX661_MODE_SOLID)
+        cmd = BANLANX661_CMD_CCT_STATIC if solid else BANLANX661_CMD_CCT_FX
+        return _encode(cmd, [cold_norm & 0xFF, warm_norm & 0xFF])
 
     def build_effect_command(
         self, device: UniledBleDevice, channel: UniledChannel, value: str | int
@@ -216,5 +255,12 @@ SP661E = BanlanX661(
     id=0x661E,
     name="SP661E",
     info="Single Color PWM (Music) Controller",
+    data=b"\x01\x00",
+)
+
+SP662E = BanlanX661(
+    id=0x662E,
+    name="SP662E",
+    info="CCT PWM (Music) Controller",
     data=b"\x01\x00",
 )
