@@ -253,10 +253,10 @@ class MatchTests(unittest.TestCase):
         self.assertIs(m, True)
 
     def test_named_sp662e_with_shared_signature_matches_sp662e(self):
-        dev = BLEDevice("B4:20:1D:32:1A:98", "SP662E", {})
+        dev = BLEDevice("B4:20:1D:32:1B:0A", "SP662E", {})
         self.assertIs(
             UniledBleDevice.match_known_device(
-                dev, self.adv(bytes.fromhex("01007a5c1230621a98000000"))
+                dev, self.adv(bytes.fromhex("01007bb4201d321b0a000000"))
             ),
             SP662E,
         )
