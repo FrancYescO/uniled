@@ -16,6 +16,7 @@
 ### 📱BanlanX
   - **SP601E** / **SP602E** / **SP608E** - Multi Channel SPI RGB Controllers
   - **SP661E** - Single Color PWM Controller (power, brightness, effects and speed)
+  - **SP662E** - PWM CCT Controller
   - **SP611E** - SPI RGB Controller
   - **SP613E** - PWM RGB Controller
   - **SP614E** - PWM RGBW Controller

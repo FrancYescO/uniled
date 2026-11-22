@@ -79,8 +79,8 @@ class UniledBleModel(UniledModel):
 
     def match_ble_device(
         self, device: BLEDevice, advertisement: AdvertisementData | None = None
-    ) -> bool:
-        """Is a BLE device supported by UniLED."""
+    ) -> UniledBleModel | bool | None:
+        """Return a model for a specific match or True for a shared signature."""
         if not hasattr(advertisement, "manufacturer_data"):
             return False
         for mid, data in advertisement.manufacturer_data.items():
@@ -172,6 +172,7 @@ class UniledBleDevice(UniledDevice):
             match = model.match_ble_device(device, advertisement)
 
             if isinstance(match, UniledBleModel):
+                # A specific model match takes precedence over shared signatures.
                 _LOGGER.debug(
                     "Device '%s' (%s) identified as '%s', by %s.",
                     device.address,
@@ -179,7 +180,7 @@ class UniledBleDevice(UniledDevice):
                     match.model_name,
                     match.manufacturer,
                 )
-                found = match
+                return match
             elif match is True:
                 if found is not None:
                     if found := UniledBleDevice.match_model_name(device.name):

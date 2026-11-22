@@ -8,6 +8,9 @@ Protocol notes: see docs/SP661E_PROTOCOL.md. Frames are
 from __future__ import annotations
 from typing import Final
 
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
+
 from ..const import *  # I know!
 from ..channel import UniledChannel
 from ..features import (
@@ -103,7 +106,7 @@ def _encode(cmd: int, data: list[int] | bytes) -> bytearray:
 
 
 class BanlanX661(UniledBleModel):
-    """BanlanX SP661E Protocol Implementation"""
+    """BanlanX SP661E/SP662E protocol implementation."""
 
     # Advertised name is unreliable ("LMB", truncated), name after the model
     use_model_name: bool = True
@@ -124,6 +127,14 @@ class BanlanX661(UniledBleModel):
             ble_read_uuids=[],
             ble_notify_uuids=[],
         )
+
+    def match_ble_device(
+        self, device: BLEDevice, advertisement: AdvertisementData | None = None
+    ) -> UniledBleModel | bool:
+        """Identify SP662E by its model byte and keep SP661E matching ambiguous."""
+        if not super().match_ble_device(device, advertisement):
+            return False
+        return self if self.model_name == "SP662E" else True
 
     def parse_notifications(
         self,
@@ -336,5 +347,5 @@ SP662E = BanlanX661(
     id=0x662E,
     name="SP662E",
     info="CCT PWM (Music) Controller",
-    data=b"\x01\x00",
+    data=b"\x01\x00\x7b",
 )
