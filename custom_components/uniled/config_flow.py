@@ -19,6 +19,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.const import (
     CONF_ADDRESS,
     CONF_COUNTRY,
+    CONF_HOST,
     CONF_MODEL,
     CONF_PASSWORD,
     CONF_USERNAME,
@@ -36,6 +37,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 from homeassistant.helpers.typing import DiscoveryInfoType
+from homeassistant.util.network import is_ip_address
 
 from .const import (
     ATTR_UL_CHIP_TYPE,
@@ -695,7 +697,13 @@ class UniledConfigFlowHandler(UniledMeshHandler, flow.ConfigFlow, domain=DOMAIN)
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the user step to pick discovered device."""
+        """Choose between automatic discovery and manual IP entry."""
+        return self.async_show_menu(step_id="user", menu_options=["discover", "manual"])
+
+    async def async_step_discover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Search for devices and pick one."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -775,10 +783,10 @@ class UniledConfigFlowHandler(UniledMeshHandler, flow.ConfigFlow, domain=DOMAIN)
             and not self._discovered_ble_devices
             and not self._discovered_zng_meshes
         ):
-            return self.async_abort(reason="no_devices_found")
+            return await self.async_step_manual()
 
         return self.async_show_form(
-            step_id="user",
+            step_id="discover",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_ADDRESS): vol.In(
@@ -806,6 +814,35 @@ class UniledConfigFlowHandler(UniledMeshHandler, flow.ConfigFlow, domain=DOMAIN)
                     ),
                 }
             ),
+            errors=errors,
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Set up a Wi-Fi controller by IP address."""
+        errors: dict[str, str] = {}
+        host = ""
+
+        if user_input is not None:
+            host = user_input[CONF_HOST].strip()
+            if not is_ip_address(host):
+                errors[CONF_HOST] = "invalid_host"
+            else:
+                try:
+                    device = await async_discover_device(self.hass, host)
+                except Exception as exc:  # noqa: BLE001
+                    _LOGGER.warning("Probe of '%s' failed: %s", host, exc)
+                    device = None
+                if device is None:
+                    errors["base"] = "cannot_connect"
+                else:
+                    self._discovered_device = device
+                    return await self._async_network_discovery(user_input)
+
+        return self.async_show_form(
+            step_id="manual",
+            data_schema=vol.Schema({vol.Required(CONF_HOST, default=host): str}),
             errors=errors,
         )
 

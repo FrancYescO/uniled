@@ -133,6 +133,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect!",
+      "invalid_host": "Enter a valid IP address.",
       "mesh_devices": "Failed to fetch mesh devices from the cloud (check logs).",
       "mesh_fetch": "Failed to fetch mesh details from the cloud (check logs).",
       "mesh_login": "Failed to login to mesh cloud (check logs).",
@@ -141,7 +142,21 @@
     },
     "flow_title": "{name}",
     "step": {
+      "manual": {
+        "title": "Add controller by IP address",
+        "description": "Enter your Wi-Fi controller's IP address.",
+        "data": {
+          "host": "IP address"
+        }
+      },
       "user": {
+        "title": "Add controller",
+        "menu_options": {
+          "discover": "Find automatically",
+          "manual": "Enter IP manually"
+        }
+      },
+      "discover": {
         "data": {
           "address": "Device"
         },
