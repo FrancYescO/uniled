@@ -37,7 +37,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 from homeassistant.helpers.typing import DiscoveryInfoType
-from homeassistant.util.network import is_ip_address
+from homeassistant.util.network import is_ipv4_address
 
 from .const import (
     ATTR_UL_CHIP_TYPE,
@@ -826,7 +826,7 @@ class UniledConfigFlowHandler(UniledMeshHandler, flow.ConfigFlow, domain=DOMAIN)
 
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
-            if not is_ip_address(host):
+            if not is_ipv4_address(host):
                 errors[CONF_HOST] = "invalid_host"
             else:
                 try:

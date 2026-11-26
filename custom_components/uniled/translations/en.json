@@ -133,7 +133,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect!",
-      "invalid_host": "Enter a valid IP address.",
+      "invalid_host": "Enter a valid IPv4 address.",
       "mesh_devices": "Failed to fetch mesh devices from the cloud (check logs).",
       "mesh_fetch": "Failed to fetch mesh details from the cloud (check logs).",
       "mesh_login": "Failed to login to mesh cloud (check logs).",
@@ -144,7 +144,7 @@
     "step": {
       "manual": {
         "title": "Add controller by IP address",
-        "description": "Enter your Wi-Fi controller's IP address.",
+        "description": "Enter your Wi-Fi controller's IPv4 address.",
         "data": {
           "host": "IP address"
         }
